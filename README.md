@@ -86,7 +86,7 @@ cd AwL
 if mingw/msys2 gcc main.c lexer/lexer.c parser/parser.c codegen/codegen.c -o awl.exe
 if wsl ./awl main.awl
 ```
-##📖 Language Syntax
+## 📖Language Syntax
 
 <details>
 <summary>📖 Click to see full grammar</summary>
@@ -149,7 +149,7 @@ call        := IDENT '(' args? ')'
 
 └── awl
 
-## 🗺️ Roadmap
+## 🗺️ROADMAP
 
 - [x] Variables & arithmetic
 - [x] Functions
