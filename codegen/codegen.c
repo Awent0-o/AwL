@@ -60,8 +60,51 @@ void genExpr(Node *n, FILE *out) {
 }
 
 void genStmt(Node *n, FILE *out) {
+    if (!n) return;
+
     switch (n->type) {
-        // ... ASSIGN, PRINT, IF, WHILE, BLOCK ...
+        case NODE_ASSIGN:
+            fprintf(out, "    ");
+            if (!isDeclared(n->text)) {
+                fprintf(out, "int ");
+                markDeclared(n->text);
+            }
+            fprintf(out, "%s = ", n->text);
+            genExpr(n->left, out); 
+            fprintf(out, ";\n");
+            break;
+
+        case NODE_PRINT:
+            fprintf(out, "    printf(\"%%d\\n\", "); 
+            genExpr(n->expr, out);
+            fprintf(out, ");\n");
+            break;
+
+        case NODE_IF:
+            fprintf(out, "    if ");
+            genExpr(n->cond, out);
+            fprintf(out, " ");
+            genStmt(n->thenBranch, out);
+            if (n->elseBranch) {
+                fprintf(out, "    else ");
+                genStmt(n->elseBranch, out);
+            }
+            break;
+
+        case NODE_WHILE:
+            fprintf(out, "    while ");
+            genExpr(n->cond, out);
+            fprintf(out, " ");
+            genStmt(n->thenBranch, out);
+            break;
+
+        case NODE_BLOCK:
+            fprintf(out, "{\n");
+            for (int i = 0; i < n->stmtCount; i++) {
+                genStmt(n->statements[i], out);
+            }
+            fprintf(out, "    }\n");
+            break;
 
         case NODE_RETURN:
             fprintf(out, "    return ");
@@ -79,6 +122,7 @@ void genStmt(Node *n, FILE *out) {
             break;
     }
 }
+
 
 void genFuncDecl(Node *n, FILE *out) {
     fprintf(out, "int %s(", n->text);

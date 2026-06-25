@@ -185,7 +185,7 @@ Node *parseStatement(Parser *p) {
 
     // PRINT BLOCK
     if (check(p, TOK_KW_PRINT)) {    
-        advance(p); // 'print'
+        advance(p); 
         Node *n = newNode(NODE_PRINT);
 
         if (check(p, TOK_STRING)) {

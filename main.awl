@@ -1,26 +1,8 @@
-func add(a, b) {
-    return a + b;
-}
-
-func max(a, b) {
-    if (a > b) {
-        return a;
-    }
-    return b;
+func add(x,y){
+    return x + y;
 }
 
 x = 5;
 y = 10;
 
-
-if (x < y) {
-    print "x менше y";
-}
-
-print add(x, y);
-print max(x, y);
-
-while (x < 20) {
-    print x;
-    x = x + 1;
-}
+print add(x,y);
