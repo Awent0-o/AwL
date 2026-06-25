@@ -13,10 +13,10 @@
 ## 📑 Table of Contents
 
 - [Features](#-features)
-- [Example](#-example)
-- [Build](#-build)
+- [Example](#%EF%B8%8Fexample)
+- [Build](#%EF%B8%8Fbuild)
 - [Language Syntax](#-language-syntax)
-- [Roadmap](#-roadmap)
+- [Roadmap](#%EF%B8%8Froadmap)
 
 
 ## ✨ Features
@@ -30,7 +30,7 @@
 | Arrays                   | 🚧 planned |
 | Standard library         | ❌ not started |
 
-## ⬇️Example
+## ⬇️ Example
 
 **input.awl**
 ```awl
@@ -69,24 +69,26 @@ x is smaller than y
 
 14
 
-## 🏗️Build
+## 🏗️ Build
 
 Requires `gcc` and a POSIX-like shell.
 
 ```bash
+BASH
 git clone https://github.com/Awent0-o/AwL
 cd AwL
 ./awl main.awl
 ```
 
-```win
+```shell
+WIN
 git clone https://github.com/Awent0-o/AwL
 Download gcc from mingw/msys2 or wsl
 cd AwL
 if mingw/msys2 gcc main.c lexer/lexer.c parser/parser.c codegen/codegen.c -o awl.exe
 if wsl ./awl main.awl
 ```
-## 📖Language Syntax
+## 📖 Language Syntax
 
 <details>
 <summary>📖 Click to see full grammar</summary>
@@ -121,7 +123,7 @@ factor      := NUMBER | IDENT | call | '(' expr ')'
 call        := IDENT '(' args? ')'
 </details>
 
-## 🧑‍💻Project Structure
+## 🧑‍💻 Project Structure
 
 ├── lexer/
 
@@ -149,7 +151,7 @@ call        := IDENT '(' args? ')'
 
 └── awl
 
-## 🗺️ROADMAP
+## 🗺️ Roadmap
 
 - [x] Variables & arithmetic
 - [x] Functions
