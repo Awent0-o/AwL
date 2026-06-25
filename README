@@ -1,19 +1,36 @@
-# AWL Compiler Version 0.2
+<div align="center">
 
-A simple compiler for **AWL** (a custom toy programming language), written in C.  
-AWL source code is compiled through the pipeline: `AwL → C → Assembly → Binary`.
+# 🦉 AWL Compiler Version 0.2
 
-## Features
+**A custom toy programming language, compiled to native machine code.**
 
-- Custom lexer and recursive-descent parser
-- Variables, arithmetic expressions (`+ - * /`)
-- Comparison operators (`< > <= >= == !=`)
-- Control flow: `if / else`, `while`
-- Functions with parameters and `return`
-- `print` statement for strings and numbers
-- Compiles down to native machine code via generated C source
+[![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
+[![Language: C](https://img.shields.io/badge/language-C-orange)]()
+[![Made with ❤️](https://img.shields.io/badge/made%20with-%E2%9D%A4-red)]()
 
-## Example
+</div>
+
+## 📑 Table of Contents
+
+- [Features](#-features)
+- [Example](#-example)
+- [Build](#-build)
+- [Language Syntax](#-language-syntax)
+- [Roadmap](#-roadmap)
+
+
+## ✨ Features
+
+| Feature                  | Status |
+|--------------------------|----------|
+| Variables & arithmetic   | ✅worked |
+| Comparison operators     | ✅worked |
+| if / else, while         | ✅worked |
+| Functions                | ✅worked |
+| Arrays                   | 🚧 planned |
+| Standard library         | ❌ not started |
+
+## ⬇️Example
 
 **input.awl**
 ```awl
@@ -52,7 +69,7 @@ x is smaller than y
 
 14
 
-## Build
+## 🏗️Build
 
 Requires `gcc` and a POSIX-like shell.
 
@@ -69,8 +86,11 @@ cd AwL
 if mingw/msys2 gcc main.c lexer/lexer.c parser/parser.c codegen/codegen.c -o awl.exe
 if wsl ./awl main.awl
 ```
+##📖 Language Syntax
 
-## Language Syntax
+<details>
+<summary>📖 Click to see full grammar</summary>
+
 
 program     := (funcDecl | statement)*
 
@@ -99,8 +119,9 @@ term        := factor (('' | '/') factor)
 factor      := NUMBER | IDENT | call | '(' expr ')'
 
 call        := IDENT '(' args? ')'
+</details>
 
-## Project Structure
+## 🧑‍💻Project Structure
 
 ├── lexer/
 
@@ -128,9 +149,11 @@ call        := IDENT '(' args? ')'
 
 └── awl
 
-## Roadmap
+## 🗺️ Roadmap
 
+- [x] Variables & arithmetic
+- [x] Functions
 - [ ] Arrays
-- [ ] String concatenation
-- [ ] Better error messages with line/column info
-- [ ] Standard library functions
+- [ ] Lib
+
+---
