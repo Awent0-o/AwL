@@ -13,10 +13,10 @@
 ## 📑 Table of Contents
 
 - [Features](#-features)
-- [Example](#%EF%B8%8Fexample)
-- [Build](#%EF%B8%8Fbuild)
+- [Example](#%EF%B8%8F-example)
+- [Build](#%EF%B8%8F-build)
 - [Language Syntax](#-language-syntax)
-- [Roadmap](#%EF%B8%8Froadmap)
+- [Roadmap](#%EF%B8%8F-roadmap)
 
 
 ## ✨ Features
