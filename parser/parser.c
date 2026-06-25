@@ -174,45 +174,54 @@ Node *parseBlock(Parser *p) {
 
 // statement := assign | print | if | while | block
 Node *parseStatement(Parser *p) {
-
-    //IF BLOCK
+    // IF BLOCK
     if (check(p, TOK_KW_IF))    return parseIf(p);
 
-    //WHILE BLOCK
+    // WHILE BLOCK
     if (check(p, TOK_KW_WHILE)) return parseWhile(p);
 
-    //RETURN 
+    // RETURN 
     if (check(p, TOK_KW_RETURN)) return parseReturn(p);
 
-    //PRINT BLOCK
-    if (check(p, TOK_KW_PRINT)) { /* як раніше */ }
+    // PRINT BLOCK
+    if (check(p, TOK_KW_PRINT)) {    
+        advance(p); // 'print'
+        Node *n = newNode(NODE_PRINT);
 
-    //PARAMS BLOCK
+        if (check(p, TOK_STRING)) {
+            Token str = advance(p);
+            Node *strNode = newNode(NODE_STRING);
+            strcpy(strNode->text, str.text);
+            n->expr = strNode;
+        } else {
+            n->expr = parseExpr(p);
+        }
+
+        expect(p, TOK_SEMI, ";");
+        return n;
+    }
+
+    // BLOCK '{ ... }'
     if (check(p, TOK_LBRACE))   return parseBlock(p);
 
-    if (check(p, TOK_TEXT)) {
-        // let's look at the next token to distinguish TEXT = ... from TEXT(...) ;
-        int save = p->pos;
-        advance(p);
-        if (check(p, TOK_TEXT)) {
-            int save = p->pos;
-            advance(p);
-            bool isAssign = check(p, TOK_ASSIGN);
-            p->pos = save;
-        
-            if (isAssign) {
-                return parseAssignOrExpr(p);
-            } else {
-                Node *e = parseExpr(p);
-                expect(p, TOK_SEMI, ";");
-                Node *n = newNode(NODE_EXPR_STMT);
-                n->expr = e;
-                return n;
-            }
+    // ASING BLOCK
+    if (check(p, TOK_TEXT)) { 
+        // Look one token ahead, without changing the current parser position
+        // If the next token exists and is an '=' sign
+        if (p->pos + 1 < p->tokens->count && p->tokens->tokens[p->pos + 1].type == TOK_ASSIGN) {
+            return parseAssignOrExpr(p); 
+        } else {
+            // this call func (add(x, y);)
+            Node *e = parseExpr(p);
+            expect(p, TOK_SEMI, "expected ';' after expression");
+            
+            Node *n = newNode(NODE_EXPR_STMT);
+            n->expr = e;
+            return n;
         }
     }
 
-    printf("Parse error: unexpected token '%s' in string %d\n",
+    printf("Parse error: unexpected token '%s' on line %d\n",
            peek(p).text, peek(p).line);
     exit(1);
 }

@@ -71,50 +71,6 @@ TokenList tokenize(const char *src, size_t len) {
             continue;
         }
 
-        if (c == '=') {
-            if (pos + 1 < len && src[pos + 1] == '=') {
-                addToken(&list, TOK_EQ, "==", line);
-                pos += 2;
-            } else {
-                addToken(&list, TOK_ASSIGN, "=", line);
-                pos++;
-            }
-            continue;
-        }
-
-        if (c == '!') {
-            if (pos + 1 < len && src[pos + 1] == '=') {
-                addToken(&list, TOK_NE, "!=", line);
-                pos += 2;
-            } else {
-                printf("Невідомий символ '!' на рядку %d\n", line);
-                pos++;
-            }
-            continue;
-        }
-
-        if (c == '<') {
-            if (pos + 1 < len && src[pos + 1] == '=') {
-                addToken(&list, TOK_LE, "<=", line);
-                pos += 2;
-            } else {
-                addToken(&list, TOK_LT, "<", line);
-                pos++;
-            }
-            continue;
-        }
-
-        if (c == '>') {
-            if (pos + 1 < len && src[pos + 1] == '=') {
-                addToken(&list, TOK_GE, ">=", line);
-                pos += 2;
-            } else {
-                addToken(&list, TOK_GT, ">", line);
-                pos++;
-            }
-            continue;
-        }
-
         // односимвольні токени
         switch (c) {
             case '+': addToken(&list, TOK_PLUS, "+", line); break;
@@ -127,6 +83,43 @@ TokenList tokenize(const char *src, size_t len) {
             case '}': addToken(&list, TOK_RBRACE, "}", line); break;
             case ',': addToken(&list, TOK_COMMA, ",", line); break;
             case ';': addToken(&list, TOK_SEMI, ";", line); break;
+            case '=': 
+                if (pos + 1 < len && src[pos + 1] == '=') {
+                    addToken(&list, TOK_EQ, "==", line);
+                    pos += 2;
+                } else {
+                    addToken(&list, TOK_ASSIGN, "=", line);
+                    pos++;
+                }
+                break;
+            case '!':
+                if (pos + 1 < len && src[pos + 1] == '=') {
+                    addToken(&list, TOK_NE, "!=", line);
+                    pos += 2;
+                } else {
+                    printf("Unknown symbol '!' in line %d\n", line);
+                    pos++;
+                }
+                break;
+            case '<':
+                if (pos + 1 < len && src[pos + 1] == '=') {
+                    addToken(&list, TOK_LE, "<=", line);
+                    pos += 2;
+                } else {
+                    addToken(&list, TOK_LT, "<", line);
+                    pos++;
+                }
+                break;
+            case '>':
+                if (pos + 1 < len && src[pos + 1] == '=') {
+                    addToken(&list, TOK_GE, ">=", line);
+                    pos += 2;
+                } else {
+                    addToken(&list, TOK_GT, ">", line);
+                    pos++;
+                }
+                break;
+
             default:
                 printf("Unknown symbol '%c' in line %d\n", c, line);
                 break;
