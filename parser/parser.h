@@ -1,4 +1,5 @@
 #include "../lexer/lexer.h"
+#include "../lexer/ast.h"
 #include <stdbool.h>
 
 typedef struct Parser{
@@ -33,3 +34,11 @@ Node *parseIf(Parser *p);
 Node *parseWhile(Parser *p);
 
 Node *parseAssignOrExpr(Parser *p);
+
+Node *parseArith(Parser *p);
+
+Node *parseComparison(Parser *p);
+
+Node *parseFuncDecl(Parser *p);
+
+Node *parseReturn(Parser *p);

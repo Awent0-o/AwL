@@ -1,0 +1,136 @@
+# AWL Compiler Version 0.2
+
+A simple compiler for **AWL** (a custom toy programming language), written in C.  
+AWL source code is compiled through the pipeline: `AwL → C → Assembly → Binary`.
+
+## Features
+
+- Custom lexer and recursive-descent parser
+- Variables, arithmetic expressions (`+ - * /`)
+- Comparison operators (`< > <= >= == !=`)
+- Control flow: `if / else`, `while`
+- Functions with parameters and `return`
+- `print` statement for strings and numbers
+- Compiles down to native machine code via generated C source
+
+## Example
+
+**input.awl**
+```awl
+func add(a, b) {
+    return a + b;
+}
+
+x = 5;
+y = 10;
+
+if (x < y) {
+    print "x is smaller than y";
+}
+
+print add(x, y);
+
+while (x < 15) {
+    print x;
+    x = x + 1;
+}
+```
+
+**Output**
+
+x is smaller than y
+
+15
+
+5
+
+6
+
+7
+
+...
+
+14
+
+## Build
+
+Requires `gcc` and a POSIX-like shell.
+
+```bash
+git clone https://github.com/Awent0-o/AwL
+cd AwL
+./awl main.awl
+```
+
+```win
+git clone https://github.com/Awent0-o/AwL
+Download gcc from mingw/msys2 or wsl
+cd AwL
+if mingw/msys2 gcc main.c lexer/lexer.c parser/parser.c codegen/codegen.c -o awl.exe
+if wsl ./awl main.awl
+```
+
+## Language Syntax
+
+program     := (funcDecl | statement)*
+
+funcDecl    := 'func' IDENT '(' params? ')' block
+
+statement   := assign | print | if | while | return | block | exprStmt
+
+assign      := IDENT '=' expr ';'
+
+print       := 'print' (expr | STRING) ';'
+
+if          := 'if' '(' expr ')' block ('else' block)?
+
+while       := 'while' '(' expr ')' block
+
+return      := 'return' expr ';'
+
+expr        := comparison
+
+comparison  := arith (('<' | '>' | '<=' | '>=' | '==' | '!=') arith)?
+
+arith       := term (('+' | '-') term)*
+
+term        := factor (('' | '/') factor)
+
+factor      := NUMBER | IDENT | call | '(' expr ')'
+
+call        := IDENT '(' args? ')'
+
+## Project Structure
+
+├── lexer/
+
+│   ├── lexer.h
+
+│   ├── ast.h
+
+│   └── lexer.c
+
+├── parser/
+
+│   ├── parser.h
+
+│   └── parser.c
+
+├── codegen/
+
+│   ├── codegen.h
+
+│   └── codegen.c
+
+├── main.c
+
+├── main.awl
+
+└── awl
+
+## Roadmap
+
+- [ ] Arrays
+- [ ] String concatenation
+- [ ] Better error messages with line/column info
+- [ ] Standard library functions

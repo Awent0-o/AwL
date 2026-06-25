@@ -5,13 +5,17 @@
 
 typedef enum TokenType{
     TOK_NUMBER,
-    TOK_IDENT,
+    TOK_TEXT,
+    TOK_STRING,
     TOK_ASSIGN,     // =
     TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH,
+    TOK_LT, TOK_GT, TOK_LE, TOK_GE, TOK_EQ, TOK_NE,
     TOK_LPAREN, TOK_RPAREN,
     TOK_LBRACE, TOK_RBRACE,   // { }
     TOK_SEMI,                 // ;
+    TOK_COMMA,
     TOK_KW_IF, TOK_KW_ELSE, TOK_KW_WHILE, TOK_KW_PRINT,
+    TOK_KW_FUNC, TOK_KW_RETURN,
     TOK_EOF,
     TOK_UNKNOWN
 } TokenType;
@@ -27,32 +31,5 @@ typedef struct TokenList {
     int count;
     int capacity;
 } TokenList;
-
-
-typedef enum NodeType{
-    NODE_NUMBER, NODE_IDENT, NODE_BINOP,
-    NODE_ASSIGN, NODE_PRINT, NODE_IF, NODE_WHILE, NODE_BLOCK
-} NodeType;
-
-typedef struct Node {
-
-    NodeType type;
-    int number;
-    char ident[64];
-
-    TokenType op;
-
-    struct Node *left, *right;
-
-    struct Node *cond;
-
-    struct Node *thenBranch, *elseBranch;
-
-    struct Node *expr;        // <- окреме поле для print/assign-значення
-
-    struct Node **statements;
-    int stmtCount;
-} Node;
-
 
 TokenList tokenize(const char *src, size_t len);

@@ -14,7 +14,7 @@ bool check(Parser *p, TokenType type) {
 
 Token expect(Parser *p, TokenType type, const char *msg) {
     if (!check(p, type)) {
-        printf("Помилка парсингу: очікувалось %s, рядок %d\n", msg, peek(p).line);
+        printf("Parsing error: expected %s, line %d\n", msg, peek(p).line);
         exit(1);
     }
     return advance(p);
@@ -26,7 +26,7 @@ Node *newNode(NodeType type) {
     return n;
 }
 
-// factor := NUMBER | IDENT | '(' expr ')'
+// factor := NUMBER | TEXT | '(' expr ')'
 Node *parseFactor(Parser *p) {
     Token t = peek(p);
 
@@ -36,12 +36,41 @@ Node *parseFactor(Parser *p) {
         n->number = atoi(t.text);
         return n;
     }
-    if (t.type == TOK_IDENT) {
+
+    if (t.type == TOK_TEXT) {
         advance(p);
-        Node *n = newNode(NODE_IDENT);
-        strcpy(n->ident, t.text);
+
+        // func: TEXT '(' args? ')'
+        if (check(p, TOK_LPAREN)) {
+            advance(p); // '('
+            Node *n = newNode(NODE_CALL);
+            strcpy(n->text, t.text);
+            n->args = NULL;
+            n->argCount = 0;
+
+            if (!check(p, TOK_RPAREN)) {
+                Node *arg = parseExpr(p);
+                n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
+                n->args[n->argCount++] = arg;
+
+                while (check(p, TOK_COMMA)) {
+                    advance(p);
+                    arg = parseExpr(p);
+                    n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
+                    n->args[n->argCount++] = arg;
+                }
+            }
+
+            expect(p, TOK_RPAREN, ")");
+            return n;
+        }
+
+        // звичайна змінна
+        Node *n = newNode(NODE_TEXT);
+        strcpy(n->text, t.text);
         return n;
     }
+
     if (t.type == TOK_LPAREN) {
         advance(p);
         Node *n = parseExpr(p);
@@ -49,7 +78,7 @@ Node *parseFactor(Parser *p) {
         return n;
     }
 
-    printf("Неочікуваний токен '%s' на рядку %d\n", t.text, t.line);
+    printf("Unknown symbol '%c' in line %d\n", t.text, t.line);
     exit(1);
 }
 
@@ -68,8 +97,30 @@ Node *parseTerm(Parser *p) {
     return left;
 }
 
-// expr := term (('+' | '-') term)*
+// comparison := arith (('<' | '>' | ...) arith)?
+Node *parseComparison(Parser *p) {
+    Node *left = parseArith(p);  
+
+    if (check(p, TOK_LT) || check(p, TOK_GT) || check(p, TOK_LE) ||
+        check(p, TOK_GE) || check(p, TOK_EQ) || check(p, TOK_NE)) {
+        Token op = advance(p);
+        Node *right = parseArith(p);
+        Node *n = newNode(NODE_COMPARE);
+        n->op = op.type;
+        n->left = left;
+        n->right = right;
+        return n;
+    }
+
+    return left;
+}
+
 Node *parseExpr(Parser *p) {
+    return parseComparison(p);
+}
+
+// expr := term (('+' | '-') term)*
+Node *parseArith(Parser *p) {
     Node *left = parseTerm(p);
     while (check(p, TOK_PLUS) || check(p, TOK_MINUS)) {
         Token op = advance(p);
@@ -82,14 +133,20 @@ Node *parseExpr(Parser *p) {
     }
     return left;
 }
-// program := statement* EOF
+
+// program := (funcDecl | statement)*
 Node *parseProgram(Parser *p) {
     Node *n = newNode(NODE_BLOCK);
     n->statements = NULL;
     n->stmtCount = 0;
 
     while (!check(p, TOK_EOF)) {
-        Node *stmt = parseStatement(p);
+        Node *stmt;
+        if (check(p, TOK_KW_FUNC)) {
+            stmt = parseFuncDecl(p);
+        } else {
+            stmt = parseStatement(p);
+        }
         n->statements = realloc(n->statements, sizeof(Node*) * (n->stmtCount + 1));
         n->statements[n->stmtCount++] = stmt;
     }
@@ -117,27 +174,45 @@ Node *parseBlock(Parser *p) {
 
 // statement := assign | print | if | while | block
 Node *parseStatement(Parser *p) {
-    if (check(p, TOK_KW_IF)) {
-        return parseIf(p);
-    }
-    if (check(p, TOK_KW_WHILE)) {
-        return parseWhile(p);
-    }
-    if (check(p, TOK_KW_PRINT)) {
-        advance(p); // 'print'
-        Node *n = newNode(NODE_PRINT);
-        n->left = parseExpr(p);
-        expect(p, TOK_SEMI, ";");
-        return n;
-    }
-    if (check(p, TOK_LBRACE)) {
-        return parseBlock(p);
-    }
-    if (check(p, TOK_IDENT)) {
-        return parseAssignOrExpr(p);
+
+    //IF BLOCK
+    if (check(p, TOK_KW_IF))    return parseIf(p);
+
+    //WHILE BLOCK
+    if (check(p, TOK_KW_WHILE)) return parseWhile(p);
+
+    //RETURN 
+    if (check(p, TOK_KW_RETURN)) return parseReturn(p);
+
+    //PRINT BLOCK
+    if (check(p, TOK_KW_PRINT)) { /* як раніше */ }
+
+    //PARAMS BLOCK
+    if (check(p, TOK_LBRACE))   return parseBlock(p);
+
+    if (check(p, TOK_TEXT)) {
+        // let's look at the next token to distinguish TEXT = ... from TEXT(...) ;
+        int save = p->pos;
+        advance(p);
+        if (check(p, TOK_TEXT)) {
+            int save = p->pos;
+            advance(p);
+            bool isAssign = check(p, TOK_ASSIGN);
+            p->pos = save;
+        
+            if (isAssign) {
+                return parseAssignOrExpr(p);
+            } else {
+                Node *e = parseExpr(p);
+                expect(p, TOK_SEMI, ";");
+                Node *n = newNode(NODE_EXPR_STMT);
+                n->expr = e;
+                return n;
+            }
+        }
     }
 
-    printf("Помилка парсингу: неочікуваний токен '%s' на рядку %d\n",
+    printf("Parse error: unexpected token '%s' in string %d\n",
            peek(p).text, peek(p).line);
     exit(1);
 }
@@ -149,7 +224,7 @@ Node *parseAssignOrExpr(Parser *p) {
     expect(p, TOK_ASSIGN, "=");
 
     Node *n = newNode(NODE_ASSIGN);
-    strcpy(n->ident, ident.text);
+    strcpy(n->text, ident.text);
     n->left = parseExpr(p);
 
     expect(p, TOK_SEMI, ";");
@@ -188,5 +263,40 @@ Node *parseWhile(Parser *p) {
     n->cond = cond;
     n->thenBranch = parseBlock(p);
 
+    return n;
+}
+
+// funcDecl := 'func' TEXT '(' params? ')' block
+Node *parseFuncDecl(Parser *p) {
+    expect(p, TOK_KW_FUNC, "func");
+    Token name = expect(p, TOK_TEXT, "name func");
+
+    Node *n = newNode(NODE_FUNC_DECL);
+    strcpy(n->text, name.text);
+    n->paramCount = 0;
+
+    expect(p, TOK_LPAREN, "(");
+    if (!check(p, TOK_RPAREN)) {
+        Token param = expect(p, TOK_TEXT, "params");
+        strcpy(n->params[n->paramCount++], param.text);
+
+        while (check(p, TOK_COMMA)) {
+            advance(p);
+            param = expect(p, TOK_TEXT, "params");
+            strcpy(n->params[n->paramCount++], param.text);
+        }
+    }
+    expect(p, TOK_RPAREN, ")");
+
+    n->thenBranch = parseBlock(p); // block func
+    return n;
+}
+
+// return := 'return' expr ';'
+Node *parseReturn(Parser *p) {
+    expect(p, TOK_KW_RETURN, "return");
+    Node *n = newNode(NODE_RETURN);
+    n->expr = parseExpr(p);
+    expect(p, TOK_SEMI, ";");
     return n;
 }

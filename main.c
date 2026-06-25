@@ -1,8 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "lexer/lexer.h"
+#include "codegen/codegen.h"
 #include "parser/parser.h"
+
+const char *get_file_ext(const char *filename) {
+    const char *dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return "";
+    return dot + 1;
+}
 
 char *readFile(const char *path, size_t *outLen) {
     FILE *f = fopen(path, "rb");
@@ -26,20 +30,46 @@ char *readFile(const char *path, size_t *outLen) {
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "use: %s <file.awl>\n", argv[0]);
+        fprintf(stderr, "how to use %s: <file.awl>\n", argv[0]);
         return 1;
+    }
+    if (strcmp(get_file_ext(argv[1]), "awl") != 0){
+        fprintf(stderr, "you must use %s: <file.awl>\n", argv[0]);
+        return 2;
+    }
+
+    char out_filename[512] = "a"; 
+
+    if (argc > 3 && strcmp(argv[2], "-o") == 0) {
+        strncpy(out_filename, argv[3], sizeof(out_filename) - 5);
+        out_filename[sizeof(out_filename) - 5] = '\0'; 
+    }
+
+    char *dot = strchr(out_filename, '.');
+    if (dot != NULL) {
+        *dot = '\0'; 
     }
 
     size_t len;
     char *src = readFile(argv[1], &len);
 
     TokenList tokens = tokenize(src, len);
-
     Parser parser = { .tokens = &tokens, .pos = 0 };
     Node *ast = parseProgram(&parser);
 
-    // TODO interpreter code
-    printf("succes.\n");
+    char c_filename[512];
+    sprintf(c_filename, "%s.c", out_filename);
+
+    FILE *out = fopen(c_filename, "w");
+    if (!out) {
+        fprintf(stderr, "Error opening output file %s\n", c_filename);
+        return 3;
+    }
+    genC(ast, out);
+    fclose(out);
+    genBin(out_filename); 
+
+    printf("gen %s\n", out_filename);
 
     free(src);
     free(tokens.tokens);
