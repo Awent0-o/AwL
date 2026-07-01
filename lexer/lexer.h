@@ -2,11 +2,13 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 typedef enum TokenType{
     TOK_NUMBER,
     TOK_TEXT,
     TOK_STRING,
+    TOK_FLOAT,
     TOK_ASSIGN,     // =
     TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH,
     TOK_LT, TOK_GT, TOK_LE, TOK_GE, TOK_EQ, TOK_NE,
@@ -17,6 +19,8 @@ typedef enum TokenType{
     TOK_KW_IF, TOK_KW_ELSE, TOK_KW_WHILE, TOK_KW_PRINT,
     TOK_KW_FUNC, TOK_KW_RETURN,
     TOK_EOF,
+    TOK_IGNOR,              //`comments
+    TOK_TRUE, TOK_FALSE,
     TOK_UNKNOWN
 } TokenType;
 

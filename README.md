@@ -21,14 +21,15 @@
 
 ## ✨ Features
 
-| Feature                  | Status |
-|--------------------------|----------|
-| Variables & arithmetic   | ✅worked |
-| Comparison operators     | ✅worked |
-| if / else, while         | ✅worked |
-| Functions                | ✅worked |
-| Arrays                   | 🚧 planned |
-| Standard library         | ❌ not started |
+| Feature                             | Status |
+|-------------------------------------|----------|
+| Variables (only int) & arithmetic   | ✅worked |
+| Comparison operators                | ✅worked |
+| if / else, while                    | ✅worked |
+| Functions                           | ✅worked |
+| Type var                            | ✅worked |
+| Arrays                              | 🚧 planned |
+| Standard library                    | ❌ not started |
 
 ## ⬇️ Example
 

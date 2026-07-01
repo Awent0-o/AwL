@@ -42,3 +42,7 @@ Node *parseComparison(Parser *p);
 Node *parseFuncDecl(Parser *p);
 
 Node *parseReturn(Parser *p);
+
+Node *parsePrint(Parser *p);
+
+Node *parseIgnor(Parser *p);

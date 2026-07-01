@@ -3,6 +3,22 @@
 #include <string.h>
 #include <stdbool.h>
 
+// Визначаємо підтримувані типи даних
+typedef enum {
+    TYPE_UNKNOWN = -1,
+    TYPE_INT = 0,
+    TYPE_STRING = 1,
+    TYPE_FLOAT = 2,
+    TYPE_BOOL = 3,
+    TYPE_INT_ARRAY = 4
+} DataType;
+
+typedef struct {
+    char name[64];
+    DataType type;
+    int arraySize; // Потрібно для масивів, щоб знати їхній розмір у C
+} Variable;
+
 
 void genC(Node *ast, FILE *out);
 

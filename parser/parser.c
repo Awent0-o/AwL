@@ -1,10 +1,18 @@
 #include "parser.h"
 
+static long totalAdvCall = 0;
+
 Token peek(Parser *p) {
     return p->tokens->tokens[p->pos];
 }
 
 Token advance(Parser *p) {
+    totalAdvCall++;
+    if(totalAdvCall > 1000000){
+        printf("ПОМИЛКА: забагато викликів advance(), pos=%d token='%s'\n",
+        p->pos, peek(p).text);
+        exit(1);
+    }
     return p->tokens->tokens[p->pos++];
 }
 
@@ -34,6 +42,33 @@ Node *parseFactor(Parser *p) {
         advance(p);
         Node *n = newNode(NODE_NUMBER);
         n->number = atoi(t.text);
+        return n;
+    }
+
+    if (t.type == TOK_STRING) {
+        advance(p);
+        Node *n = newNode(NODE_STRING);
+        strcpy(n->text, t.text);
+        return n;
+    }
+
+    if (t.type == TOK_FLOAT) {
+        advance(p);
+        Node *n = newNode(NODE_FLOAT);
+        n->fvalue = atof(t.text);  
+        return n;
+    }
+    if (t.type == TOK_TRUE) {
+        advance(p);
+        Node *n = newNode(NODE_BOOL);
+        n->number = 1;
+        return n;
+    }
+
+    if (t.type == TOK_FALSE) {
+        advance(p);
+        Node *n = newNode(NODE_BOOL);
+        n->number = 0;
         return n;
     }
 
@@ -139,9 +174,15 @@ Node *parseProgram(Parser *p) {
     Node *n = newNode(NODE_BLOCK);
     n->statements = NULL;
     n->stmtCount = 0;
+    int safety = 0;
 
     while (!check(p, TOK_EOF)) {
         Node *stmt;
+        if (++safety > 10000) {       
+            printf("ПОМИЛКА: нескінченний цикл парсингу на pos=%d token='%s'\n",
+                   p->pos, peek(p).text);
+            exit(1);
+        }
         if (check(p, TOK_KW_FUNC)) {
             stmt = parseFuncDecl(p);
         } else {
@@ -162,56 +203,53 @@ Node *parseBlock(Parser *p) {
     n->statements = NULL;
     n->stmtCount = 0;
 
-    while (!check(p, TOK_RBRACE)) {
+    while (!check(p, TOK_RBRACE) && !check(p, TOK_EOF)) {  // protected from absence }
         Node *stmt = parseStatement(p);
         n->statements = realloc(n->statements, sizeof(Node*) * (n->stmtCount + 1));
         n->statements[n->stmtCount++] = stmt;
     }
 
-    expect(p, TOK_RBRACE, "}");
+    expect(p, TOK_RBRACE, "}");  
     return n;
 }
-
 // statement := assign | print | if | while | block
 Node *parseStatement(Parser *p) {
+    printf(">>> pos=%d token='%s' type=%d (TOK_TEXT=%d)\n",
+     p->pos, peek(p).text, peek(p).type, TOK_TEXT);
+
     // IF BLOCK
-    if (check(p, TOK_KW_IF))    return parseIf(p);
-
-    // WHILE BLOCK
-    if (check(p, TOK_KW_WHILE)) return parseWhile(p);
-
-    // RETURN 
+    if (check(p, TOK_KW_IF))     return parseIf(p);
+ 
+    // WHILE BLOCK 
+    if (check(p, TOK_KW_WHILE))  return parseWhile(p);
+ 
+    // RETURN  
     if (check(p, TOK_KW_RETURN)) return parseReturn(p);
-
-    // PRINT BLOCK
-    if (check(p, TOK_KW_PRINT)) {    
-        advance(p); 
-        Node *n = newNode(NODE_PRINT);
-
-        if (check(p, TOK_STRING)) {
-            Token str = advance(p);
-            Node *strNode = newNode(NODE_STRING);
-            strcpy(strNode->text, str.text);
-            n->expr = strNode;
-        } else {
-            n->expr = parseExpr(p);
-        }
-
-        expect(p, TOK_SEMI, ";");
-        return n;
-    }
-
-    // BLOCK '{ ... }'
-    if (check(p, TOK_LBRACE))   return parseBlock(p);
+ 
+    // PRINT BLOCK 
+    if (check(p, TOK_KW_PRINT))  return parsePrint(p);
+     
+    //COMMENT BLOCK 
+    if(check(p, TOK_IGNOR))      return parseIgnor(p);
+ 
+    // BLOCK '{ ... }' 
+    if (check(p, TOK_LBRACE))    return parseBlock(p);
 
     // ASING BLOCK
-    if (check(p, TOK_TEXT)) { 
+    if (check(p, TOK_TEXT)) {
+         printf(">>> TEXT block: pos=%d next_type=%d TOK_ASSIGN=%d count=%d\n",
+           p->pos,
+           p->tokens->tokens[p->pos + 1].type,
+           TOK_ASSIGN,
+           p->tokens->count); 
         // Look one token ahead, without changing the current parser position
         // If the next token exists and is an '=' sign
         if (p->pos + 1 < p->tokens->count && p->tokens->tokens[p->pos + 1].type == TOK_ASSIGN) {
+             printf(">>> calling parseAssignOrExpr\n");
             return parseAssignOrExpr(p); 
         } else {
             // this call func (add(x, y);)
+            printf(">>> calling parseExpr\n");
             Node *e = parseExpr(p);
             expect(p, TOK_SEMI, "expected ';' after expression");
             
@@ -226,7 +264,7 @@ Node *parseStatement(Parser *p) {
     exit(1);
 }
 
-// assign := IDENT '=' expr ';'
+// name = INT, STRING, FLOAT, BOOL, ARRAY
 Node *parseAssignOrExpr(Parser *p) {
     Token ident = advance(p); // IDENT
 
@@ -240,7 +278,7 @@ Node *parseAssignOrExpr(Parser *p) {
     return n;
 }
 
-// if := 'if' '(' expr ')' block ('else' block)?
+// if(expr GATE NOT WORK){ ... } else{ ... }
 Node *parseIf(Parser *p) {
     expect(p, TOK_KW_IF, "if");
     expect(p, TOK_LPAREN, "(");
@@ -261,7 +299,7 @@ Node *parseIf(Parser *p) {
     return n;
 }
 
-// while := 'while' '(' expr ')' block
+// while(expr){ ... }
 Node *parseWhile(Parser *p) {
     expect(p, TOK_KW_WHILE, "while");
     expect(p, TOK_LPAREN, "(");
@@ -275,7 +313,7 @@ Node *parseWhile(Parser *p) {
     return n;
 }
 
-// funcDecl := 'func' TEXT '(' params? ')' block
+// func name(params); params only int and max 8
 Node *parseFuncDecl(Parser *p) {
     expect(p, TOK_KW_FUNC, "func");
     Token name = expect(p, TOK_TEXT, "name func");
@@ -301,11 +339,48 @@ Node *parseFuncDecl(Parser *p) {
     return n;
 }
 
-// return := 'return' expr ';'
+// return expr; expr only int, i working on this
 Node *parseReturn(Parser *p) {
     expect(p, TOK_KW_RETURN, "return");
     Node *n = newNode(NODE_RETURN);
     n->expr = parseExpr(p);
     expect(p, TOK_SEMI, ";");
+    return n;
+}
+
+// print expr; expr = INT, STRING, FLOAT
+Node *parsePrint(Parser *p){
+    advance(p); 
+    Node *n = newNode(NODE_PRINT);
+    if (check(p, TOK_STRING)) {
+        Token str = advance(p);
+        Node *strNode = newNode(NODE_STRING);
+        strcpy(strNode->text, str.text);
+        n->expr = strNode;
+    } else {
+        n->expr = parseExpr(p);
+    }
+    expect(p, TOK_SEMI, ";");
+    return n;
+}
+
+// `this you can comment
+Node *parseIgnor(Parser *p) {
+    int commentLine = peek(p).line;
+    advance(p);  // споживаємо `
+
+    Node *n = newNode(NODE_IGNOR);
+    n->text[0] = '\0';
+
+    // споживаємо всі токени на тому ж рядку
+    while (!check(p, TOK_EOF) && peek(p).line == commentLine) {
+        // збираємо текст коментаря якщо хочеш зберегти
+        if (strlen(n->text) + strlen(peek(p).text) + 2 < sizeof(n->text)) {
+            strcat(n->text, peek(p).text);
+            strcat(n->text, " ");
+        }
+        advance(p);
+    }
+
     return n;
 }

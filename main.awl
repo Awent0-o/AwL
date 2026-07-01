@@ -1,8 +1,16 @@
-func add(x,y){
-    return x + y;
+`comment
+s = "name";
+f = 4.2;
+i = 12;
+b = true;
+
+print s;
+
+if (b){
+    print "its work";
 }
 
-x = 5;
-y = 10;
-
-print add(x,y);
+if(i>f){
+    print f;
+    print i;
+}
