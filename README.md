@@ -23,7 +23,7 @@
 
 | Feature                             | Status |
 |-------------------------------------|----------|
-| Variables (only int) & arithmetic   | ✅worked |
+| Variables  & arithmetic             | ✅worked |
 | Comparison operators                | ✅worked |
 | if / else, while                    | ✅worked |
 | Functions                           | ✅worked |
