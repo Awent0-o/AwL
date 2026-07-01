@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🦉 AWL Compiler Version 0.2
+# 🦉 AWL Compiler Version 0.3
 
 **A custom toy programming language, compiled to native machine code.**
 
