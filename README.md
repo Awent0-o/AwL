@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🦉 AWL Compiler Version 0.3
+# 🦉 AWL Compiler Version 0.5
 
 **A custom toy programming language, compiled to native machine code.**
 
@@ -27,8 +27,8 @@
 | Comparison operators                | ✅worked |
 | if / else, while                    | ✅worked |
 | Functions                           | ✅worked |
-| Type var                            | ✅worked |
-| Arrays                              | 🚧 planned |
+| Arrays but without opperands        | ✅worked |
+| Integretion C code                  | ✅worked |
 | Standard library                    | ❌ not started |
 
 ## ⬇️ Example

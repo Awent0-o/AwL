@@ -48,6 +48,7 @@ Node *parseFactor(Parser *p) {
     if (t.type == TOK_STRING) {
         advance(p);
         Node *n = newNode(NODE_STRING);
+        n->text = malloc(strlen(t.text) + 1);
         strcpy(n->text, t.text);
         return n;
     }
@@ -58,6 +59,7 @@ Node *parseFactor(Parser *p) {
         n->fvalue = atof(t.text);  
         return n;
     }
+
     if (t.type == TOK_TRUE) {
         advance(p);
         Node *n = newNode(NODE_BOOL);
@@ -72,13 +74,29 @@ Node *parseFactor(Parser *p) {
         return n;
     }
 
+    if (t.type == TOK_LBRACKET){
+        return parseArray(p);
+    }
+
     if (t.type == TOK_TEXT) {
         advance(p);
 
-        // func: TEXT '(' args? ')'
+        // array index: Name = [expr, expr2];
+        if (check(p, TOK_LBRACKET)) {
+            advance(p);  // '['
+            Node *n = newNode(NODE_INDEX);
+            n->text = malloc(strlen(t.text) + 1);
+            strcpy(n->text, t.text);   // name
+            n->left = parseExpr(p);    // index
+            expect(p, TOK_RBRACKET, "]");
+            return n;
+        }
+
+        // func: Name '(' args? ')'
         if (check(p, TOK_LPAREN)) {
             advance(p); // '('
             Node *n = newNode(NODE_CALL);
+            n->text = malloc(strlen(t.text) + 1);
             strcpy(n->text, t.text);
             n->args = NULL;
             n->argCount = 0;
@@ -102,6 +120,7 @@ Node *parseFactor(Parser *p) {
 
         // звичайна змінна
         Node *n = newNode(NODE_TEXT);
+        n->text = malloc(strlen(t.text) + 1);
         strcpy(n->text, t.text);
         return n;
     }
@@ -117,7 +136,7 @@ Node *parseFactor(Parser *p) {
     exit(1);
 }
 
-// term := factor (('*' | '/') factor)*
+// * and / multiplication and division
 Node *parseTerm(Parser *p) {
     Node *left = parseFactor(p);
     while (check(p, TOK_STAR) || check(p, TOK_SLASH)) {
@@ -132,7 +151,7 @@ Node *parseTerm(Parser *p) {
     return left;
 }
 
-// comparison := arith (('<' | '>' | ...) arith)?
+// comparison <, >, <=, >=, ==, !=
 Node *parseComparison(Parser *p) {
     Node *left = parseArith(p);  
 
@@ -154,17 +173,37 @@ Node *parseExpr(Parser *p) {
     return parseComparison(p);
 }
 
-// expr := term (('+' | '-') term)*
+// +, -, ++, -- arrefmetic operations
 Node *parseArith(Parser *p) {
     Node *left = parseTerm(p);
-    while (check(p, TOK_PLUS) || check(p, TOK_MINUS)) {
-        Token op = advance(p);
-        Node *right = parseTerm(p);
+    while (check(p, TOK_PLUS) || check(p, TOK_MINUS) || check(p, TOK_INC) || check(p, TOK_DEC)){
+    if (check(p, TOK_INC)) {
+        advance(p);
+
         Node *n = newNode(NODE_BINOP);
-        n->op = op.type;
+        n->op = TOK_INC;
         n->left = left;
-        n->right = right;
         left = n;
+        continue;
+    }
+
+    if (check(p, TOK_DEC)) {
+        advance(p);
+
+        Node *n = newNode(NODE_BINOP);
+        n->op = TOK_DEC;
+        n->left = left;
+        left = n;
+        continue;
+    }else{
+            Token op = advance(p);
+            Node *right = parseTerm(p);
+            Node *n = newNode(NODE_BINOP);
+            n->op = op.type;
+            n->left = left;
+            n->right = right;
+            left = n;
+        }
     }
     return left;
 }
@@ -178,11 +217,6 @@ Node *parseProgram(Parser *p) {
 
     while (!check(p, TOK_EOF)) {
         Node *stmt;
-        if (++safety > 10000) {       
-            printf("ПОМИЛКА: нескінченний цикл парсингу на pos=%d token='%s'\n",
-                   p->pos, peek(p).text);
-            exit(1);
-        }
         if (check(p, TOK_KW_FUNC)) {
             stmt = parseFuncDecl(p);
         } else {
@@ -215,7 +249,7 @@ Node *parseBlock(Parser *p) {
 // statement := assign | print | if | while | block
 Node *parseStatement(Parser *p) {
     printf(">>> pos=%d token='%s' type=%d (TOK_TEXT=%d)\n",
-     p->pos, peek(p).text, peek(p).type, TOK_TEXT);
+    p->pos, peek(p).text, peek(p).type, TOK_TEXT);
 
     // IF BLOCK
     if (check(p, TOK_KW_IF))     return parseIf(p);
@@ -234,14 +268,21 @@ Node *parseStatement(Parser *p) {
  
     // BLOCK '{ ... }' 
     if (check(p, TOK_LBRACE))    return parseBlock(p);
+    
+    //ARRAY BLOCK
+    if (check(p, TOK_LBRACKET))  return parseArray(p);
+    
+    // C code block: @{ ... }
+    if (check(p, TOK_RAW_C)) {
+        Token t = advance(p);
+        Node *n = newNode(NODE_RAW_C);
+        n->text = malloc(strlen(t.text) + 1);
+        strcpy(n->text, t.text);
+        return n;
+    }
 
     // ASING BLOCK
     if (check(p, TOK_TEXT)) {
-         printf(">>> TEXT block: pos=%d next_type=%d TOK_ASSIGN=%d count=%d\n",
-           p->pos,
-           p->tokens->tokens[p->pos + 1].type,
-           TOK_ASSIGN,
-           p->tokens->count); 
         // Look one token ahead, without changing the current parser position
         // If the next token exists and is an '=' sign
         if (p->pos + 1 < p->tokens->count && p->tokens->tokens[p->pos + 1].type == TOK_ASSIGN) {
@@ -258,6 +299,7 @@ Node *parseStatement(Parser *p) {
             return n;
         }
     }
+    
 
     printf("Parse error: unexpected token '%s' on line %d\n",
            peek(p).text, peek(p).line);
@@ -270,11 +312,21 @@ Node *parseAssignOrExpr(Parser *p) {
 
     expect(p, TOK_ASSIGN, "=");
 
-    Node *n = newNode(NODE_ASSIGN);
-    strcpy(n->text, ident.text);
-    n->left = parseExpr(p);
-
+    Node *expr = parseExpr(p);
     expect(p, TOK_SEMI, ";");
+
+    if(expr->type == NODE_ARRAY){
+        Node *n = newNode(NODE_ARRAY_LITERAL);
+        n->text = malloc(strlen(ident.text) + 1);
+        strcpy(n->text, ident.text);
+        n->left = expr;
+        return n;
+    }
+
+    Node *n = newNode(NODE_ASSIGN);
+    n->text = malloc(strlen(ident.text) + 1);
+    strcpy(n->text, ident.text);
+    n->left = expr;
     return n;
 }
 
@@ -319,6 +371,7 @@ Node *parseFuncDecl(Parser *p) {
     Token name = expect(p, TOK_TEXT, "name func");
 
     Node *n = newNode(NODE_FUNC_DECL);
+    n->text = malloc(strlen(name.text) + 1);
     strcpy(n->text, name.text);
     n->paramCount = 0;
 
@@ -382,5 +435,28 @@ Node *parseIgnor(Parser *p) {
         advance(p);
     }
 
+    return n;
+}
+
+Node *parseArray(Parser *p) {
+    expect(p, TOK_LBRACKET, "[");
+    Node *n = newNode(NODE_ARRAY_LITERAL);
+    n->args = NULL;
+    n->argCount = 0;
+
+    if (!check(p, TOK_RBRACKET)) {
+        Node *arg = parseExpr(p);
+        n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
+        n->args[n->argCount++] = arg;
+
+        while (check(p, TOK_COMMA)) {
+            advance(p);
+            arg = parseExpr(p);
+            n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
+            n->args[n->argCount++] = arg;
+        }
+    }
+
+    expect(p, TOK_RBRACKET, "]");
     return n;
 }

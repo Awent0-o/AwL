@@ -73,12 +73,12 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error opening output file %s\n", c_filename);
         return 3;
     }
-    bool compileToBin = (argc >= 3 && strcmp(argv[2], "-c") == 0);
+    bool compileToC = (argc >= 3 && strcmp(argv[2], "-c") == 0);
 
     genC(ast, out);
     fclose(out);
 
-    if (compileToBin) {
+    if (!compileToC) {
         genBin(out_filename);
     }
 

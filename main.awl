@@ -1,16 +1,23 @@
-`comment
-s = "name";
-f = 4.2;
-i = 12;
-b = true;
+i = 0;
+s = "string";
+arr = ["string", "suka", s];
+arr2 = [1, 2, 3];
 
-print s;
-
-if (b){
-    print "its work";
+`this is c code
+@{
+    int j = 0;
+    int size = sizeof(arr) / sizeof(arr[0]);
+    int size2 = sizeof(arr2) / sizeof(arr2[0]);
 }
 
-if(i>f){
-    print f;
-    print i;
+`while is bullshit for counter, i worked on for
+while(i<size){
+    print arr[i];
+    i++;
 }
+
+while(j<size2){
+    print arr2[j];
+    j++;
+}
+

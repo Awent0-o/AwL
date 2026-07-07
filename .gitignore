@@ -1,2 +1,3 @@
-a.bin
-a.c
+.gitignore
+build/
+.vscode/

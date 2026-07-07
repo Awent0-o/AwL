@@ -4,6 +4,7 @@
 static Variable declaredVars[MAX_VARS];
 static int declaredCount = 0;
 
+
 // Отримати тип змінної за її іменем
 DataType getVarType(const char *name) {
     for (int i = 0; i < declaredCount; i++) {
@@ -12,12 +13,30 @@ DataType getVarType(const char *name) {
     return TYPE_UNKNOWN;
 }
 
+Variable *getVar(const char *name) {
+    for (int i = 0; i < declaredCount; i++) {
+        if (strcmp(declaredVars[i].name, name) == 0)
+            return &declaredVars[i];
+    }
+    return NULL;
+}
+
 // Зареєструвати змінну з її типом
-void regVar(const char *name, DataType type, int arraySize) {
+void regVar(const char *name, DataType type, DataType elementType) {
     strcpy(declaredVars[declaredCount].name, name);
     declaredVars[declaredCount].type = type;
-    declaredVars[declaredCount].arraySize = arraySize;
+    declaredVars[declaredCount].elementType = elementType;
     declaredCount++;
+}
+
+const char *getTypeStr(DataType type) {
+    switch (type) {
+        case TYPE_INT: return "int";
+        case TYPE_STRING: return "const char*";
+        case TYPE_FLOAT: return "float";
+        case TYPE_BOOL: return "bool";
+        default: return "unknown";
+    }
 }
 
 DataType ExprType(Node *n) {
@@ -27,7 +46,7 @@ DataType ExprType(Node *n) {
         case NODE_NUMBER: return TYPE_INT;
         case NODE_STRING: return TYPE_STRING;            
         case NODE_FLOAT:  return TYPE_FLOAT;
-        //case NODE_ARRAY:  return TYPE_INT_ARRAY;        
+        case NODE_BOOL:   return TYPE_BOOL;     
         
         case NODE_TEXT: {
             // var = var2
@@ -42,6 +61,10 @@ DataType ExprType(Node *n) {
             }
             return TYPE_INT;
         }
+
+        case NODE_ARRAY_LITERAL:
+            return TYPE_ARRAY;
+
         default: return TYPE_INT;
     }
 }
@@ -52,15 +75,13 @@ void genExpr(Node *n, FILE *out) {
         fprintf(out, "0 /* ERROR: NULL expression */");
         return;
     }
-
-    printf("genExpr: type=%d\n", n->type);
         
     switch (n->type) {
         case NODE_NUMBER:
             fprintf(out, "%d", n->number);
             break;
 
-        case NODE_TEXT:                 //<- idk why this not work together with NODE_STRING
+        case NODE_TEXT:                
             fprintf(out, "%s", n->text);
             break;
 
@@ -78,20 +99,34 @@ void genExpr(Node *n, FILE *out) {
 
         case NODE_INDEX:
             fprintf(out, "%s[", n->text);
-            genExpr(n->left, out); // index
+            genExpr(n->left, out);
             fprintf(out, "]");
+            break;       
+
+        case NODE_ARRAY_LITERAL:
+            fprintf(out, "{");
+
+            for (int i = 0; i < n->argCount; i++) {
+                if (i) fprintf(out, ", ");
+                genExpr(n->args[i], out);
+            }
+
+            fprintf(out, "}");
             break;
         
-        
         case NODE_BINOP: {
-            const char *opStr = n->op == TOK_PLUS ? "+" :
-                                 n->op == TOK_MINUS ? "-" :
-                                 n->op == TOK_STAR ? "*" : "/";
-            fprintf(out, "(");
+            const char *opStr =
+                n->op == TOK_PLUS  ? "+"  :
+                n->op == TOK_MINUS ? "-"  :
+                n->op == TOK_STAR  ? "*"  :
+                n->op == TOK_SLASH ? "/"  :
+                n->op == TOK_INC   ? "++" :
+                n->op == TOK_DEC   ? "--" :
+                "?";
+            
             genExpr(n->left, out);
             fprintf(out, " %s ", opStr);
-            genExpr(n->right, out);
-            fprintf(out, ")");
+            if(n->right != NULL) genExpr(n->right, out);      
             break;
         }
         case NODE_COMPARE: {
@@ -99,9 +134,11 @@ void genExpr(Node *n, FILE *out) {
                 n->op == TOK_LT ? "<" : n->op == TOK_GT ? ">" :
                 n->op == TOK_LE ? "<=" : n->op == TOK_GE ? ">=" :
                 n->op == TOK_EQ ? "==" : "!=";
+                fprintf(out, "(");
                 genExpr(n->left, out);
                 fprintf(out, " %s ", opStr);
                 genExpr(n->right, out);
+                fprintf(out, ")");
                 break;
         }
         case NODE_CALL: {
@@ -114,83 +151,79 @@ void genExpr(Node *n, FILE *out) {
             break;
         }
         default:
-            fprintf(out, "0 /* ERROR: Unknown expression type %d */", n->type);
-            break;
-        }
+        fprintf(out, "0 /* ERROR: Unknown expression type %d */", n->type);
+        break;
+    }
 }
 
 void genStmt(Node *n, FILE *out) {
     if (!n) return;
-
-    printf("genStmt: type=%d\n", n->type);
-
+    
     switch (n->type) {
-        case NODE_IGNOR:
-            fprintf(out, "//%s", n->text);
-            break;
-
+            
         case NODE_ASSIGN:{
             fprintf(out, "    ");
             DataType extType = getVarType(n->text);
+            
+            if(n->left->type == NODE_ARRAY_LITERAL){
+                DataType elementType = ExprType(n->left->args[0]);
+                printf("in array %d\n", elementType);
+                
+                fprintf(out, "%s %s[] = ", getTypeStr(elementType), n->text);
+                genExpr(n->left, out);
+                fprintf(out, ";\n");
+                regVar(n->text, TYPE_ARRAY, elementType);
 
-            if(extType == TYPE_UNKNOWN){
+                break;
+
+            }
+
+            else if(extType == TYPE_UNKNOWN){
 
                 DataType newType = ExprType(n->left);
 
-                if(newType == TYPE_INT){
-                    fprintf(out, "int ");
-                    regVar(n->text, TYPE_INT, 0);
-                }
-                else if(newType == TYPE_STRING){
-                    fprintf(out, "const char* ");
-                    regVar(n->text, TYPE_STRING, 0);
-                }
-                else if(newType == TYPE_FLOAT){
-                    fprintf(out, "float ");
-                    regVar(n->text, TYPE_FLOAT, 0);
-                }
-                else if(newType == TYPE_BOOL){
-                    fprintf(out, "bool ");
-                    regVar(n->text, TYPE_BOOL, 0);
-                }
-                //else if(newType == TYPE_INT_ARRAY){
-                //just only use int, next version do all
-                //    fprintf(out, "int %s[]", n->text);
+                const char *typeStr = getTypeStr(newType);
+                fprintf(out, "%s %s = ", typeStr, n->text);
+                genExpr(n->left, out);
+                fprintf(out, ";\n");
+                regVar(n->text, newType, 0);
 
-                //n->left node array, in args lie down his elements
-                //    if(n->left && n->left->type == NODE_ARRAY){
-                //        for(int i = 0; i < n->left->argCount; i++){
-                //            if(i > 0) fprintf(out, ", ");
-                //            genExpr(n->left->args[i], out);
-                //        }
-                //        regVar(n->text, TYPE_INT_ARRAY, n->left->argCount);
-                //    }
-                //    fprintf(out, "};\n");
-                //    break;
-                //}
+                break;
+                
             }
+            else{
+                fprintf(out, "%s ", getTypeStr(extType));
+                fprintf(out, " %s = ", n->text);
+                genExpr(n->left, out);
+                fprintf(out, ";\n");
 
-            // стандартне присвоєння зміних
-            fprintf(out, " %s = ", n->text);
-            genExpr(n->left, out);
-            fprintf(out, ";\n");
-
+            }
             break;
         }
-
-        case NODE_PRINT:{
             
-            DataType printType = TYPE_INT;
+            
+        case NODE_PRINT:{
+                
+            DataType printType = TYPE_INT; 
+            Variable *var = getVar(n->expr->text);
+
+            if (var == NULL) {
+                printf("Variable '%s' not found\n", n->expr->text);
+                break;
+            }
+
+            printf("elementType = %d\n", var->elementType);
 
             if(n->expr){
                 if(n->expr->type == NODE_STRING) printType = TYPE_STRING;
+                else if(n->expr->type == NODE_INDEX) printType = TYPE_ARRAY;
                 else if(n->expr->type == NODE_FLOAT) printType = TYPE_FLOAT;
                 else if(n->expr->type == NODE_TEXT){
                     DataType t = getVarType(n->expr->text);
                     if(t != TYPE_UNKNOWN) printType = t;
                     else printType = ExprType(n->expr);
                 }
-
+            
                 //init type for print text
                 if (printType == TYPE_STRING) {
                     fprintf(out, "    printf(\"%%s\\n\", ");
@@ -202,10 +235,28 @@ void genStmt(Node *n, FILE *out) {
                     genExpr(n->expr, out);
                     fprintf(out, ");\n");
                 } 
-                //else if (printType == TYPE_INT_ARRAY) {
-                //    //and i working on print array, now that not work
-                //    fprintf(out, "    printf(\"[Array Pointer: %%p]\\n\", %s);\n", n->expr->text);
-                //} 
+                else if (printType == TYPE_ARRAY) {
+                    printf("printType = %d TYPE_ARRAY = %d\n", printType, TYPE_ARRAY);
+                    printf("element type = %d\n", var->elementType);
+
+                    switch (var->elementType) {            
+                        case TYPE_STRING:
+                            fprintf(out, "printf(\"%%s\\n\", ");
+                            break;
+                    
+                        case TYPE_FLOAT:
+                            fprintf(out, "printf(\"%%f\\n\", ");
+                            break;
+
+                        default:
+                            fprintf(out, "printf(\"%%d\\n\", ");
+                            break;
+
+                    }
+                
+                    genExpr(n->expr, out);
+                    fprintf(out, ");\n");
+                }
                 else {
                     // int and bool
                     fprintf(out, "    printf(\"%%d\\n\", ");
@@ -253,6 +304,10 @@ void genStmt(Node *n, FILE *out) {
             genExpr(n->expr, out);
             fprintf(out, ";\n");
             break;
+        
+        case NODE_RAW_C:
+            fprintf(out, "%s\n", n->text);
+            break;
 
         default:
             break;
@@ -277,10 +332,10 @@ void genFuncDecl(Node *n, FILE *out) {
 void genC(Node *ast, FILE *out) {
 
     if (!ast) { printf("genC: NULL ast!\n"); return; }
-    printf("genC: stmtCount=%d\n", ast->stmtCount);
 
     fprintf(out, "#include <stdio.h>\n");
-    fprintf(out, "#include <stdbool.h>\n\n");
+    fprintf(out, "#include <stdbool.h>\n");
+    // fprintf(out, "#include <%s>\n\n", n->text);
 
     for (int i = 0; i < ast->stmtCount; i++) {
         if (ast->statements[i]->type == NODE_FUNC_DECL) {
@@ -291,7 +346,6 @@ void genC(Node *ast, FILE *out) {
     fprintf(out, "int main() {\n");
     for (int i = 0; i < ast->stmtCount; i++) {
         if (ast->statements[i]->type != NODE_FUNC_DECL) {
-            printf("genC: stmt[%d] type=%d\n", i, ast->statements[i]->type);
             genStmt(ast->statements[i], out);
         }
     }

@@ -10,13 +10,13 @@ typedef enum {
     TYPE_STRING = 1,
     TYPE_FLOAT = 2,
     TYPE_BOOL = 3,
-    TYPE_INT_ARRAY = 4
+    TYPE_ARRAY = 4
 } DataType;
 
 typedef struct {
     char name[64];
     DataType type;
-    int arraySize; // Потрібно для масивів, щоб знати їхній розмір у C
+    DataType elementType;
 } Variable;
 
 

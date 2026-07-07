@@ -2,19 +2,20 @@
 
 typedef enum NodeType{
     NODE_NUMBER, NODE_STRING, NODE_TEXT, NODE_BINOP, NODE_COMPARE,
-    NODE_ASSIGN, NODE_PRINT, NODE_IF, NODE_WHILE, NODE_BLOCK,
+    NODE_ASSIGN, NODE_PRINT, NODE_IF, NODE_WHILE, NODE_FOR, NODE_BLOCK,
     NODE_FUNC_DECL, NODE_CALL, NODE_RETURN,
-    NODE_FLOAT, NODE_BOOL, //NODE_ARRAY,
-    NODE_EXPR_STMT, 
-    NODE_IGNOR, // for comments
-    NODE_INDEX // index array
+    NODE_FLOAT, NODE_BOOL, NODE_ARRAY, NODE_INDEX, NODE_INDEX_ASSIGN,
+    NODE_ARRAY_LITERAL,
+    NODE_IGNOR,
+    NODE_EXPR_STMT,
+    NODE_RAW_C  // <-- for raw C code block
 } NodeType;
 
 typedef struct Node {
 
     NodeType type;
     int number;
-    char text[256]; 
+    char *text; 
 
     TokenType op;
 

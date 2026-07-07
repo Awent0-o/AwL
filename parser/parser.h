@@ -46,3 +46,5 @@ Node *parseReturn(Parser *p);
 Node *parsePrint(Parser *p);
 
 Node *parseIgnor(Parser *p);
+
+Node *parseArray(Parser *p);

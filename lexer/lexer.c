@@ -22,12 +22,12 @@ TokenList tokenize(const char *src, size_t len) {
         printf("pos=%zu len=%zu c=%d ('%c')\n", pos, len, (int)c, isprint(c) ? c : '?');
 
         if (c == '\n') { line++; pos++; continue; }
-        if (c == '\r') { pos++; continue; }   // ігноруємо carriage return
+        if (c == '\r') { pos++; continue; }   // ignore carriage return
         if (isspace(c)) { pos++; continue; }
 
-        //строкі
+        //strings
         if (c == '"') {
-            pos++; // пропустити відкриваючу "
+            pos++; // skip opening "
             size_t start = pos;
 
             while (pos < len && src[pos] != '"') {
@@ -41,12 +41,12 @@ TokenList tokenize(const char *src, size_t len) {
             memcpy(buf, src + start, n);
             buf[n] = '\0';
         
-            if (pos < len) pos++; // пропустити закриваючу "
+            if (pos < len) pos++; // skip closing "
             addToken(&list, TOK_STRING, buf, line);
             continue;
         }
 
-        // числа
+        // numbers and floats
         if (isdigit(c)) {
             size_t start = pos;
             bool is_float = false;
@@ -72,7 +72,7 @@ TokenList tokenize(const char *src, size_t len) {
             continue;
         }
 
-        // ідентифікатори / ключові слова
+        // indentifiers and keywords
         if (isalpha(c) || c == '_') {
             size_t start = pos;
             while (pos < len && (isalnum(src[pos]) || src[pos] == '_')) pos++;
@@ -86,6 +86,7 @@ TokenList tokenize(const char *src, size_t len) {
             else if (strcmp(buf, "if") == 0) addToken(&list, TOK_KW_IF, buf, line);
             else if (strcmp(buf, "else") == 0) addToken(&list, TOK_KW_ELSE, buf, line);
             else if (strcmp(buf, "while") == 0) addToken(&list, TOK_KW_WHILE, buf, line);
+            else if (strcmp(buf, "for") == 0) addToken(&list, TOK_KW_FOR, buf, line); // <-- not realized yet
             else if (strcmp(buf, "print") == 0) addToken(&list, TOK_KW_PRINT, buf, line);
             else if (strcmp(buf, "true") == 0) addToken(&list, TOK_TRUE, buf, line);
             else if (strcmp(buf, "false") == 0) addToken(&list, TOK_FALSE, buf, line);
@@ -93,6 +94,7 @@ TokenList tokenize(const char *src, size_t len) {
             continue;
         }
 
+        // one or two character operators
         if (c == '=' && pos + 1 < len && src[pos + 1] == '=') {
             addToken(&list, TOK_EQ, "==", line); pos += 2; continue;
         }
@@ -105,7 +107,21 @@ TokenList tokenize(const char *src, size_t len) {
         if (c == '>' && pos + 1 < len && src[pos + 1] == '=') {
             addToken(&list, TOK_GE, ">=", line); pos += 2; continue;
         }
+
+        // increment operator
+        if (c == '+' && pos + 1 < len && src[pos + 1] == '+') {
+            addToken(&list, TOK_INC, "++", line);
+            pos += 2;
+            continue;
+        }
         
+        // decrement operator
+        if (c == '-' && pos + 1 < len && src[pos + 1] == '-') {
+            addToken(&list, TOK_DEC, "--", line);
+            pos += 2;
+            continue;
+        }
+                
         if (c == '`') {
             while (pos < len && src[pos] != '\n') {
                 pos++;
@@ -114,12 +130,27 @@ TokenList tokenize(const char *src, size_t len) {
             continue;
         }
 
-        // односимвольні токени
+        if (c == '@' && pos + 1 < len && src[pos + 1] == '{') {
+            
+            pos += 2;  // skip @{
+            size_t start = pos;
+            while (pos < len - 1 && !(src[pos] == '}')) {
+                printf("%zu: '%c' (%d)\n", pos, src[pos], (unsigned char)src[pos]);
+                pos++;
+            }
+            char buf[4096];
+            size_t n = pos - start;
+            memcpy(buf, src + start, n);
+            buf[n] = '\0';
+            pos++;  // skip }
+            addToken(&list, TOK_RAW_C, buf, line);
+            continue;
+        }
+
         switch (c) {
             case '=': addToken(&list, TOK_ASSIGN, "=", line); break;
             case '<': addToken(&list, TOK_LT, "<", line); break;
             case '>': addToken(&list, TOK_GT, ">", line); break;
-            case '!': printf("Unknown '!' line %d\n", line); break;
             case '+': addToken(&list, TOK_PLUS, "+", line); break;
             case '-': addToken(&list, TOK_MINUS, "-", line); break;
             case '*': addToken(&list, TOK_STAR, "*", line); break;
@@ -131,7 +162,8 @@ TokenList tokenize(const char *src, size_t len) {
             case ',': addToken(&list, TOK_COMMA, ",", line); break;
             case ';': addToken(&list, TOK_SEMI, ";", line); break;
             case '`': addToken(&list, TOK_IGNOR, "`", line); break;
-            
+            case '[': addToken(&list, TOK_LBRACKET, "[", line); break;
+            case ']': addToken(&list, TOK_RBRACKET, "]", line); break;
 
             default:
                 printf("Unknown symbol '%s' in line %d\n", c, line);
