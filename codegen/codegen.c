@@ -134,11 +134,9 @@ void genExpr(Node *n, FILE *out) {
                 n->op == TOK_LT ? "<" : n->op == TOK_GT ? ">" :
                 n->op == TOK_LE ? "<=" : n->op == TOK_GE ? ">=" :
                 n->op == TOK_EQ ? "==" : "!=";
-                fprintf(out, "(");
                 genExpr(n->left, out);
                 fprintf(out, " %s ", opStr);
                 genExpr(n->right, out);
-                fprintf(out, ")");
                 break;
         }
         case NODE_CALL: {
@@ -200,24 +198,26 @@ void genStmt(Node *n, FILE *out) {
             }
             break;
         }
-            
+
             
         case NODE_PRINT:{
                 
-            DataType printType = TYPE_INT; 
-            Variable *var = getVar(n->expr->text);
-
-            if (var == NULL) {
-                printf("Variable '%s' not found\n", n->expr->text);
-                break;
-            }
-
-            printf("elementType = %d\n", var->elementType);
+            DataType printType = TYPE_INT;
+            Variable *var = NULL;
 
             if(n->expr){
                 if(n->expr->type == NODE_STRING) printType = TYPE_STRING;
-                else if(n->expr->type == NODE_INDEX) printType = TYPE_ARRAY;
                 else if(n->expr->type == NODE_FLOAT) printType = TYPE_FLOAT;
+                else if(n->expr->type == NODE_INDEX){
+                    Variable* var = getVar(n->expr->text);
+
+                    if (!var) {
+                        printf("Unknown array '%s'\n", n->expr->text);
+                        break;
+                    }
+
+                    printType = var->elementType;
+                }
                 else if(n->expr->type == NODE_TEXT){
                     DataType t = getVarType(n->expr->text);
                     if(t != TYPE_UNKNOWN) printType = t;
@@ -235,28 +235,6 @@ void genStmt(Node *n, FILE *out) {
                     genExpr(n->expr, out);
                     fprintf(out, ");\n");
                 } 
-                else if (printType == TYPE_ARRAY) {
-                    printf("printType = %d TYPE_ARRAY = %d\n", printType, TYPE_ARRAY);
-                    printf("element type = %d\n", var->elementType);
-
-                    switch (var->elementType) {            
-                        case TYPE_STRING:
-                            fprintf(out, "printf(\"%%s\\n\", ");
-                            break;
-                    
-                        case TYPE_FLOAT:
-                            fprintf(out, "printf(\"%%f\\n\", ");
-                            break;
-
-                        default:
-                            fprintf(out, "printf(\"%%d\\n\", ");
-                            break;
-
-                    }
-                
-                    genExpr(n->expr, out);
-                    fprintf(out, ");\n");
-                }
                 else {
                     // int and bool
                     fprintf(out, "    printf(\"%%d\\n\", ");

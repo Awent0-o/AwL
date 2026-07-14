@@ -17,7 +17,14 @@ Token advance(Parser *p) {
 }
 
 bool check(Parser *p, TokenType type) {
-    return peek(p).type == type;
+    Token t = peek(p);
+
+    printf("peek.type=%d type=%d equal=%d\n",
+           t.type,
+           type,
+           t.type == type);
+
+    return t.type == type;
 }
 
 Token expect(Parser *p, TokenType type, const char *msg) {
@@ -151,7 +158,7 @@ Node *parseTerm(Parser *p) {
     return left;
 }
 
-// comparison <, >, <=, >=, ==, !=
+// comparison <, >, <=, >=, ==, !=, true, false
 Node *parseComparison(Parser *p) {
     Node *left = parseArith(p);  
 
@@ -163,6 +170,12 @@ Node *parseComparison(Parser *p) {
         n->op = op.type;
         n->left = left;
         n->right = right;
+        return n;
+    }
+    else if (check(p, TOK_TRUE) || check(p, TOK_FALSE)) {
+        Token op = advance(p);
+        Node *n = newNode(NODE_BOOL);
+        n->number = (op.type == TOK_TRUE) ? 1 : 0;
         return n;
     }
 
@@ -177,25 +190,26 @@ Node *parseExpr(Parser *p) {
 Node *parseArith(Parser *p) {
     Node *left = parseTerm(p);
     while (check(p, TOK_PLUS) || check(p, TOK_MINUS) || check(p, TOK_INC) || check(p, TOK_DEC)){
-    if (check(p, TOK_INC)) {
-        advance(p);
+        if (check(p, TOK_INC)) {
+            advance(p);
 
-        Node *n = newNode(NODE_BINOP);
-        n->op = TOK_INC;
-        n->left = left;
-        left = n;
-        continue;
-    }
+            Node *n = newNode(NODE_BINOP);
+            n->op = TOK_INC;
+            n->left = left;
+            left = n;
+            continue;
+        }
 
-    if (check(p, TOK_DEC)) {
-        advance(p);
+        if (check(p, TOK_DEC)) {
+            advance(p);
 
-        Node *n = newNode(NODE_BINOP);
-        n->op = TOK_DEC;
-        n->left = left;
-        left = n;
-        continue;
-    }else{
+            Node *n = newNode(NODE_BINOP);
+            n->op = TOK_DEC;
+            n->left = left;
+            left = n;
+            continue;
+        }
+        else{
             Token op = advance(p);
             Node *right = parseTerm(p);
             Node *n = newNode(NODE_BINOP);
@@ -330,7 +344,7 @@ Node *parseAssignOrExpr(Parser *p) {
     return n;
 }
 
-// if(expr GATE NOT WORK){ ... } else{ ... }
+// if(expr GATE NOT WORK || &&){ ... } else{ ... }
 Node *parseIf(Parser *p) {
     expect(p, TOK_KW_IF, "if");
     expect(p, TOK_LPAREN, "(");
@@ -403,11 +417,14 @@ Node *parseReturn(Parser *p) {
 
 // print expr; expr = INT, STRING, FLOAT
 Node *parsePrint(Parser *p){
-    advance(p); 
+    advance(p);  
+
     Node *n = newNode(NODE_PRINT);
     if (check(p, TOK_STRING)) {
         Token str = advance(p);
+        printf(">>> print string: %s\n", str.text);
         Node *strNode = newNode(NODE_STRING);
+        strNode->text = malloc(strlen(str.text) + 1);
         strcpy(strNode->text, str.text);
         n->expr = strNode;
     } else {

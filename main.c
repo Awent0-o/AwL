@@ -45,29 +45,20 @@ int main(int argc, char *argv[]) {
         out_filename[sizeof(out_filename) - 5] = '\0'; 
     }
 
-    char *dot = strchr(out_filename, '.');
-    if (dot != NULL) {
-        *dot = '\0'; 
-    }
 
     size_t len;
     char *src = readFile(argv[1], &len);
-    printf("1. File read: %zu bytes\n", len);
 
     TokenList tokens = tokenize(src, len);
-    printf("2. Tokenized: %d tokens\n", tokens.count);
 
     Parser parser = { .tokens = &tokens, .pos = 0 };
-    printf("3. Starting parse...\n");
 
     Node *ast = parseProgram(&parser);
-    printf("4. Parsed OK\n");
 
     char c_filename[512];
     sprintf(c_filename, "%s.c", out_filename);
 
     FILE *out = fopen(c_filename, "w");
-    printf("5. Starting codegen...\n");
 
     if (!out) {
         fprintf(stderr, "Error opening output file %s\n", c_filename);

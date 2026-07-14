@@ -9,6 +9,7 @@ void addToken(TokenList *list, TokenType type, const char *text, int line) {
     t->type = type;
     strncpy(t->text, text, sizeof(t->text) - 1);
     t->line = line;
+    printf("ADD: type=%d text='%s'\n", type, text);
 }
 
 TokenList tokenize(const char *src, size_t len) {
@@ -26,6 +27,7 @@ TokenList tokenize(const char *src, size_t len) {
         if (isspace(c)) { pos++; continue; }
 
         //strings
+        printf("c='%c' (%d)\n", c, c);
         if (c == '"') {
             pos++; // skip opening "
             size_t start = pos;

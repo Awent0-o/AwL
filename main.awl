@@ -1,5 +1,6 @@
 i = 0;
 s = "string";
+b = true;
 arr = ["string", "suka", s];
 arr2 = [1, 2, 3];
 
@@ -21,3 +22,6 @@ while(j<size2){
     j++;
 }
 
+if(b){
+    print "work";
+}
