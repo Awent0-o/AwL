@@ -137,6 +137,12 @@ call        := IDENT '(' args? ')'
 
 │   └── codegen.c
 
+├── semantic/
+
+│   ├── semantic.h
+
+│   └── semantic.c
+
 ├── main.c
 
 ├── main.awl
@@ -148,6 +154,7 @@ call        := IDENT '(' args? ')'
 - [x] Variables & arithmetic
 - [x] Functions
 - [x] Arrays
-- [x] Lib, you can made his on python, c, lua, awl (for now)
+- [x] Lib, you can made his on python, c, awl (for now)
+- [x] Semantic
 
 ---
