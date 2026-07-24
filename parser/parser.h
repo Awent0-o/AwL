@@ -1,5 +1,9 @@
-#include "../lexer/lexer.h"
-#include "../lexer/ast.h"
+#ifndef PARSER_H
+#define PARSER_H
+
+#include "utils/utils.h"
+#include "lexer/ast.h"
+#include "codegen/python/codepy.h"
 #include <stdbool.h>
 
 typedef struct Parser{
@@ -14,6 +18,10 @@ Token advance(Parser *p);
 bool check(Parser *p, TokenType type);
 
 Token expect(Parser *p, TokenType type, const char* msg);
+
+void freeNode(Node *n);
+
+void freePyModules();
 
 Node *newNode(NodeType type);
 
@@ -48,3 +56,11 @@ Node *parsePrint(Parser *p);
 Node *parseIgnor(Parser *p);
 
 Node *parseArray(Parser *p);
+
+Node *parseFor(Parser *p);
+
+Node *parseImport(Parser *p);
+
+DataType parseTypeAnnotation(Parser *p);
+
+#endif

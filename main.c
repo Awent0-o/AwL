@@ -1,34 +1,8 @@
-#include "lexer/lexer.h"
-#include "codegen/codegen.h"
-#include "parser/parser.h"
-
-const char *get_file_ext(const char *filename) {
-    const char *dot = strrchr(filename, '.');
-    if(!dot || dot == filename) return "";
-    return dot + 1;
-}
-
-char *readFile(const char *path, size_t *outLen) {
-    FILE *f = fopen(path, "rb");
-    if (!f) {
-        fprintf(stderr, "not such file: %s\n", path);
-        exit(1);
-    }
-
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    char *buffer = malloc(size + 1);
-    fread(buffer, 1, size, f);
-    buffer[size] = '\0';
-
-    fclose(f);
-    *outLen = (size_t)size;
-    return buffer;
-}
+#include "codegen/c/codegen.h"
+#include "semantic/semantic.h"
 
 int main(int argc, char *argv[]) {
+    initFlags();
     if (argc < 2) {
         fprintf(stderr, "how to use %s: <file.awl>\n", argv[0]);
         return 1;
@@ -55,8 +29,13 @@ int main(int argc, char *argv[]) {
 
     Node *ast = parseProgram(&parser);
 
-    char c_filename[512];
-    sprintf(c_filename, "%s.c", out_filename);
+    SemResult result = analyzeAST(ast);
+    printSemErrors(&result);
+    if(result.hasErrors) return -1;
+    
+
+    char c_filename[520];
+    snprintf(c_filename, sizeof(c_filename), "%s.c", out_filename);
 
     FILE *out = fopen(c_filename, "w");
 
@@ -64,17 +43,22 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error opening output file %s\n", c_filename);
         return 3;
     }
+
     bool compileToC = (argc >= 3 && strcmp(argv[2], "-c") == 0);
 
-    genC(ast, out);
-    fclose(out);
-
-    if (!compileToC) {
-        genBin(out_filename);
+    if(compileThis){
+        genC(ast, out);
+        fclose(out);
+    
+        if (!compileToC) {
+            genBin(out_filename);
+        }
+    
+        printf("gen %s\n", out_filename);
     }
 
-    printf("gen %s\n", out_filename);
-
+    freeNode(ast);
+    freePyModules();
     free(src);
     free(tokens.tokens);
     return 0;

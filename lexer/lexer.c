@@ -9,7 +9,6 @@ void addToken(TokenList *list, TokenType type, const char *text, int line) {
     t->type = type;
     strncpy(t->text, text, sizeof(t->text) - 1);
     t->line = line;
-    printf("ADD: type=%d text='%s'\n", type, text);
 }
 
 TokenList tokenize(const char *src, size_t len) {
@@ -19,8 +18,6 @@ TokenList tokenize(const char *src, size_t len) {
 
     while (pos < len) {
         char c = src[pos];
-
-        printf("pos=%zu len=%zu c=%d ('%c')\n", pos, len, (int)c, isprint(c) ? c : '?');
 
         if (c == '\n') { line++; pos++; continue; }
         if (c == '\r') { pos++; continue; }   // ignore carriage return
@@ -53,7 +50,7 @@ TokenList tokenize(const char *src, size_t len) {
             size_t start = pos;
             bool is_float = false;
 
-            while (pos < len && isdigit(src[pos]) || src[pos] == '.') {
+            while (pos < len && (isdigit(src[pos]) || src[pos] == '.')) {
                 if(src[pos] == '.'){
                     if(is_float) break;
                     is_float = true;
@@ -73,6 +70,21 @@ TokenList tokenize(const char *src, size_t len) {
             
             continue;
         }
+        if (c == 'f' && pos + 1 < len && src[pos + 1] == '"') {
+            pos += 2; // skip f"
+            size_t start = pos;
+            while (pos < len && src[pos] != '"') {
+                pos++;
+            }
+            char buf[512] = {0};
+            size_t n = pos - start;
+            if (n >= sizeof(buf)) n = sizeof(buf) - 1;
+            memcpy(buf, src + start, n);
+            buf[n] = '\0';
+            if (pos < len) pos++; // close "
+            addToken(&list, TOK_FSTRING, buf, line);
+            continue;
+        }
 
         // indentifiers and keywords
         if (isalpha(c) || c == '_') {
@@ -88,26 +100,46 @@ TokenList tokenize(const char *src, size_t len) {
             else if (strcmp(buf, "if") == 0) addToken(&list, TOK_KW_IF, buf, line);
             else if (strcmp(buf, "else") == 0) addToken(&list, TOK_KW_ELSE, buf, line);
             else if (strcmp(buf, "while") == 0) addToken(&list, TOK_KW_WHILE, buf, line);
-            else if (strcmp(buf, "for") == 0) addToken(&list, TOK_KW_FOR, buf, line); // <-- not realized yet
+            else if (strcmp(buf, "for") == 0) addToken(&list, TOK_KW_FOR, buf, line);
             else if (strcmp(buf, "print") == 0) addToken(&list, TOK_KW_PRINT, buf, line);
+            else if (strcmp(buf, "import") == 0) addToken(&list, TOK_KW_IMPORT, buf, line);
             else if (strcmp(buf, "true") == 0) addToken(&list, TOK_TRUE, buf, line);
             else if (strcmp(buf, "false") == 0) addToken(&list, TOK_FALSE, buf, line);
+            else if (strcmp(buf, "int") == 0)    addToken(&list, TOK_KW_INT, buf, line);
+            else if (strcmp(buf, "float") == 0)  addToken(&list, TOK_KW_FLOAT, buf, line);
+            else if (strcmp(buf, "string") == 0) addToken(&list, TOK_KW_STRING, buf, line);
+            else if (strcmp(buf, "bool") == 0)   addToken(&list, TOK_KW_BOOL, buf, line);
+            else if (strcmp(buf, "void") == 0)   addToken(&list, TOK_KW_VOID, buf, line);
             else addToken(&list, TOK_TEXT, buf, line);
             continue;
         }
 
         // one or two character operators
+        if (c == '-' && pos + 1 < len && src[pos + 1] == '>') {
+            addToken(&list, TOK_ARROW, "->", line); 
+            pos += 2; 
+            continue;
+        }
+
         if (c == '=' && pos + 1 < len && src[pos + 1] == '=') {
-            addToken(&list, TOK_EQ, "==", line); pos += 2; continue;
+            addToken(&list, TOK_EQ, "==", line);
+            pos += 2; 
+            continue;
         }
         if (c == '!' && pos + 1 < len && src[pos + 1] == '=') {
-            addToken(&list, TOK_NE, "!=", line); pos += 2; continue;
+            addToken(&list, TOK_NE, "!=", line); 
+            pos += 2; 
+            continue;
         }
         if (c == '<' && pos + 1 < len && src[pos + 1] == '=') {
-            addToken(&list, TOK_LE, "<=", line); pos += 2; continue;
+            addToken(&list, TOK_LE, "<=", line); 
+            pos += 2; 
+            continue;
         }
         if (c == '>' && pos + 1 < len && src[pos + 1] == '=') {
-            addToken(&list, TOK_GE, ">=", line); pos += 2; continue;
+            addToken(&list, TOK_GE, ">=", line); 
+            pos += 2; 
+            continue;
         }
 
         // increment operator
@@ -166,9 +198,10 @@ TokenList tokenize(const char *src, size_t len) {
             case '`': addToken(&list, TOK_IGNOR, "`", line); break;
             case '[': addToken(&list, TOK_LBRACKET, "[", line); break;
             case ']': addToken(&list, TOK_RBRACKET, "]", line); break;
+            case '.': addToken(&list, TOK_DOT, ".", line); break;
 
             default:
-                printf("Unknown symbol '%s' in line %d\n", c, line);
+                printf("Unknown symbol '%c' in line %d\n", c, line);
                 break;
         }
         pos++;

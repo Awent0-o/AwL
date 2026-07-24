@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🦉 AWL Compiler Version 0.5
+# 🦉 AWL Compiler Version 0.8
 
 **A custom toy programming language, compiled to native machine code.**
 
@@ -21,54 +21,41 @@
 
 ## ✨ Features
 
-| Feature                             | Status |
-|-------------------------------------|----------|
-| Variables  & arithmetic             | ✅worked |
-| Comparison operators                | ✅worked |
-| if / else, while                    | ✅worked |
-| Functions                           | ✅worked |
-| Arrays but without opperands        | ✅worked |
-| Integretion C code                  | ✅worked |
-| Standard library                    | ❌ not started |
+| Feature                                               |  Status  |
+|-------------------------------------------------------|----------|
+| Variables & arithmetic                                | ✅worked |
+| Comparison operators                                  | ✅worked |
+| if / else, while / for                                | ✅worked |
+| Functions                                             | ✅worked |
+| Arrays but without opperands                          | ✅worked |
+| Integretion C code                                    | ✅worked |
+| Standard library                                      | ✅worked |
+| Semantic analyze                                      | ✅worked |
 
 ## ⬇️ Example
 
 **input.awl**
 ```awl
-func add(a, b) {
-    return a + b;
+import "libs/add.awl";
+import "math";
+import "libs/hello.py";
+
+func isPositive(int x) -> bool {
+    return x > 0;
 }
 
-x = 5;
-y = 10;
-
-if (x < y) {
-    print "x is smaller than y";
+func printAll(string msg, int times) -> void {
+    for(times) {
+        print msg;
+    }
 }
 
-print add(x, y);
-
-while (x < 15) {
-    print x;
-    x = x + 1;
-}
+x = add(3, 5);
+print sin(90);
+print x;
+print hello.greet("Awent0_o");
+printAll("hello", 3);
 ```
-
-**Output**
-
-x is smaller than y
-
-15
-
-5
-
-6
-
-7
-
-...
-
-14
 
 ## 🏗️ Build
 
@@ -97,17 +84,21 @@ if wsl ./awl main.awl
 
 program     := (funcDecl | statement)*
 
+import      := 'import' path (math -> c, libs/hello.py -> py, libs/add.awl -> awl) ';'
+
 funcDecl    := 'func' IDENT '(' params? ')' block
 
 statement   := assign | print | if | while | return | block | exprStmt
 
 assign      := IDENT '=' expr ';'
 
-print       := 'print' (expr | STRING) ';'
+print       := 'print' "string" expr expr ';' | 'print' f"string: {expr}" ';'
 
 if          := 'if' '(' expr ')' block ('else' block)?
 
 while       := 'while' '(' expr ')' block
+
+for         := 'for' '('i, times')' block (i not necessarily)
 
 return      := 'return' expr ';'
 
@@ -156,7 +147,7 @@ call        := IDENT '(' args? ')'
 
 - [x] Variables & arithmetic
 - [x] Functions
-- [ ] Arrays
-- [ ] Lib
+- [x] Arrays
+- [x] Lib, you can made his on python, c, lua, awl (for now)
 
 ---
