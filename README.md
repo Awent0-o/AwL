@@ -23,7 +23,7 @@
 
 ### 🚀 Language
 - Added support for arrays in func.
-- Added `for`, `while`, `if / else` its own scope
+- Added `for`, `while`, `if / else` hes own scope
 
 ### ⚙️ Compiler
 - Command-line flags:
