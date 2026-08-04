@@ -3,6 +3,7 @@
 
 #include "lexer.h"
 
+
 typedef enum {
     TYPE_UNKNOWN = -1,
     TYPE_INT = 0,
@@ -16,22 +17,29 @@ typedef enum {
 } DataType;
 
 typedef struct {
+    char *name;
+    DataType type;
+    DataType elementType;
+} Variable;
+
+typedef struct {
     char *name; //<- not limit name func
     DataType type;
+    DataType elementType;
 } Param;
 
 typedef enum NodeType{
-//          ↓1 2 3 4 5   ↓"string"    ↓f"{}"        ↓print expr expr ↓text      ↓1+2=3      ↓1>2           ↓a = 1       ↓a = 1<-create
-            NODE_NUMBER, NODE_STRING, NODE_FSTRING, NODE_PRINT_LIST, NODE_TEXT, NODE_BINOP, NODE_COMPARE, NODE_ASSIGN, NODE_VAR_DEC,
+//              ↓1 2 3 4 5   ↓"string"    ↓f"{}"        ↓print expr expr ↓text      ↓1+2=3      ↓1>2           ↓a = 1       
+                NODE_NUMBER, NODE_STRING, NODE_FSTRING, NODE_PRINT_LIST, NODE_TEXT, NODE_BINOP, NODE_COMPARE, NODE_ASSIGN,
 //DEFUALT KW
-            NODE_PRINT, NODE_IF, NODE_WHILE, NODE_FOR, NODE_BLOCK, NODE_IMPORT,
-//DEFUALT FUNC KW
-            NODE_FUNC_DECL, NODE_CALL, NODE_RETURN, NODE_PY_CALL, //<- only for semantic
+                NODE_PRINT, NODE_IF, NODE_WHILE, NODE_FOR, NODE_BLOCK, NODE_IMPORT,
+//DEFUALT FUNC KW                                       ↓only for semantic
+                NODE_FUNC_DECL, NODE_CALL, NODE_RETURN, NODE_PY_CALL, 
 //TYPE FOR RETURN
-            NODE_FLOAT, NODE_BOOL, NODE_ARRAY, NODE_INDEX, NODE_INDEX_ASSIGN,
+                NODE_FLOAT, NODE_BOOL, NODE_ARRAY, NODE_INDEX, NODE_INDEX_ASSIGN,
 
     NODE_EXPR_STMT,
-    NODE_IGNOR,     //`commentc
+    NODE_IGNOR,     //`comment
     NODE_RAW_C      // <-- for raw C code block
 } NodeType;
 
@@ -39,12 +47,14 @@ typedef struct Node {
 
     Token token;
     NodeType type;
+    int line;       // <-- for semantic, i dont use this but i want to keep it for future use
     int number;
     char *text;
     char *module;
 
-    TokenType op;
     bool isDeclaration;
+
+    TokenType op;
 
     struct Node *left, *right;
 
@@ -61,6 +71,7 @@ typedef struct Node {
     int paramCount;
     int paramCapacity;
     DataType returnType;
+    DataType returnElementType;
 
     struct Node **args;       // <-- argument performs
     int argCount;

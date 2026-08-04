@@ -27,7 +27,16 @@ Variable *getVar(const char *name) {
 }
 
 void regVar(const char *name, DataType type, DataType elementType) {
-    strcpy(declaredVars[declaredCount].name, name);
+    //check if already declared
+    for (int i = 0; i < declaredCount; i++) {
+        if (strcmp(declaredVars[i].name, name) == 0) {
+            //update type if already declared
+            declaredVars[i].type = type;
+            declaredVars[i].elementType = elementType;
+            return;
+        }
+    }
+    declaredVars[declaredCount].name = _strdup(name);
     declaredVars[declaredCount].type = type;
     declaredVars[declaredCount].elementType = elementType;
     declaredCount++;
@@ -141,9 +150,17 @@ DataType ExprType(Node *n) {
         }
 
         case NODE_ARRAY:
+            Variable *var = getVar(n->text);
+            var->elementType = n->returnElementType;
             return TYPE_ARRAY;
 
         case NODE_CALL:{
+            Variable *var = getVar(n->text);
+            if(var){
+                //if func return arr - return TYPE_ARRAY
+                //elementType we take separately
+                return var->type; 
+            }
             return n->returnType;
         }
 
@@ -157,12 +174,38 @@ DataType ExprType(Node *n) {
             }
             return TYPE_CALL;
         }
+        case NODE_INDEX: {
+            // arr[i] — element type
+            Variable *v = getVar(n->text);
+            if (v && v->type == TYPE_ARRAY) {
+                return v->elementType;  // TYPE_INT for int[]
+            }
+            return TYPE_INT;
+        }
         
         default: return TYPE_AUTO;
     }
 }
 
 //FUNC CODEGEN
+/*
+* func for genBlock, we save the scope of declared vars, and after the block we restore it
+* FOR, WHILE, IF, BLOCK, FUNC DECLARE he have their own scope, 
+* so we need to save and restore the scope of declared vars
+*/
+void genBlock(Node *n, FILE *out) {
+    if (!n) return;
+    int savedCount = declaredCount;  //save scope
+
+    fprintf(out, "{\n");
+    for (int i = 0; i < n->stmtCount; i++) {
+        genStmt(n->statements[i], out);
+    }
+    fprintf(out, "    }\n");
+
+    declaredCount = savedCount;  //restore scope
+}
+
 void genExpr(Node *n, FILE *out) {
     
     if (!n) {
@@ -217,10 +260,25 @@ void genExpr(Node *n, FILE *out) {
                 n->op == TOK_INC   ? "++" :
                 n->op == TOK_DEC   ? "--" :
                 "?";
+
+            //parentheses only if the right or left node is also a BINOP with lower precedence.
+            bool leftNeedsParens  = n->left  && n->left->type  == NODE_BINOP &&
+                            (n->op == TOK_STAR || n->op == TOK_SLASH) &&
+                            (n->left->op  == TOK_PLUS || n->left->op  == TOK_MINUS);
+
+            bool rightNeedsParens = n->right && n->right->type == NODE_BINOP &&
+                            (n->op == TOK_STAR || n->op == TOK_SLASH) &&
+                            (n->right->op == TOK_PLUS || n->right->op == TOK_MINUS);
             
-            genExpr(n->left, out);
-            fprintf(out, " %s ", opStr);
-            if(n->right != NULL) genExpr(n->right, out);      
+            if (leftNeedsParens)  fprintf(out, "(");
+                genExpr(n->left, out);
+            if (leftNeedsParens)  fprintf(out, ")");
+
+                fprintf(out, " %s ", opStr);
+            
+            if (rightNeedsParens) fprintf(out, "(");
+                if (n->right) genExpr(n->right, out);
+            if (rightNeedsParens) fprintf(out, ")");  
             break;
         }
         case NODE_COMPARE: {
@@ -289,6 +347,7 @@ void genExpr(Node *n, FILE *out) {
                 fprintf(out, ")");
                 break;
             }
+            break;
 
         default:
             fprintf(out, "0 /* ERROR: Unknown expression type %d */", n->type);
@@ -305,31 +364,54 @@ void genStmt(Node *n, FILE *out) {
             fprintf(out, "    ");
             DataType extType = getVarType(n->text);
 
-            if(n->left->type == NODE_ARRAY){
-                DataType elementType = ExprType(n->left->args[0]);
-                
-                fprintf(out, "%s %s[] = ", getTypeStr(elementType), n->text);
+
+            if (n->left && n->left->type == NODE_CALL) {
+                // find func in declaredVars
+                Variable *func = getVar(n->left->text);
+                DataType extType = getVarType(n->text);
+
+                DataType retType = func ? func->type : TYPE_INT;
+                // take element type from Variable 
+                DataType retElemType = (func && func->type == TYPE_ARRAY)
+                           ? func->elementType
+                           : TYPE_INT;
+
+                if (extType == TYPE_UNKNOWN) {
+                    if(retType == TYPE_ARRAY){
+                        fprintf(out, "%s *%s = ", getTypeStr(retElemType), n->text);
+                        regVar(n->text, TYPE_ARRAY, retElemType);
+                    }
+                    else {
+                        fprintf(out, "%s %s = ", getTypeStr(retType), n->text);
+                        regVar(n->text, retType, TYPE_UNKNOWN);
+                    }
+                    genExpr(n->left, out);
+                    fprintf(out, ";\n");
+                    break; 
+                }   
+                else {
+                    fprintf(out, "    %s = ", n->text);
+                }
                 genExpr(n->left, out);
                 fprintf(out, ";\n");
-                regVar(n->text, TYPE_ARRAY, elementType);
-
-                break;
-
+                break; 
             }
+
+        
+
             //rewrite because problem a = 2; -> int a = 2;
             //a = 1; -> int a = 1; when you need to reassign rather than recreate
             if (extType == TYPE_UNKNOWN) {
                 DataType newType = ExprType(n->left);
                 fprintf(out, "%s %s = ", getTypeStr(newType), n->text);
-                genExpr(n->left, out);
-                fprintf(out, ";\n");
+
                 regVar(n->text, newType, TYPE_UNKNOWN);
             }
             else {
                 fprintf(out, "%s = ", n->text);
-                genExpr(n->left, out);
-                fprintf(out, ";\n");
             }
+            genExpr(n->left, out);
+            fprintf(out, ";\n");
             break;
             
         }
@@ -358,7 +440,8 @@ void genStmt(Node *n, FILE *out) {
                         else                 fputc(*c, out);
                     }
                 
-                } else if (arg->type == NODE_FSTRING) {
+                } 
+                else if (arg->type == NODE_FSTRING) {
                     // f"text {var} text" — replace {var} on format
                     const char *p = arg->text;
                     while (*p) {
@@ -388,7 +471,15 @@ void genStmt(Node *n, FILE *out) {
                             p++;
                         }
                     }
-                } else {
+                }
+                else if (arg->type == NODE_ARRAY)
+                {
+                    DataType t = ExprType(arg);
+                    t = arg->returnElementType;
+                    fprintf(out, "%s", getFormatSpec(t));    
+                }
+                 
+                else {
                     // var or format
                     DataType t = ExprType(arg);
                     fprintf(out, "%s", getFormatSpec(t)); 
@@ -434,10 +525,10 @@ void genStmt(Node *n, FILE *out) {
             fprintf(out, "if( ");
             genExpr(n->cond, out);
             fprintf(out, " )");
-            genStmt(n->thenBranch, out);
+            genBlock(n->thenBranch, out);
             if (n->elseBranch) {
                 fprintf(out, "    else ");
-                genStmt(n->elseBranch, out);
+                genBlock(n->elseBranch, out);
             }
             break;
 
@@ -445,30 +536,68 @@ void genStmt(Node *n, FILE *out) {
             fprintf(out, "while( ");
             genExpr(n->cond, out);
             fprintf(out, " )");
-            genStmt(n->thenBranch, out);
+            genBlock(n->thenBranch, out);
             break;
 
         case NODE_BLOCK:
             fprintf(out, "{\n");
             for (int i = 0; i < n->stmtCount; i++) {
-                genStmt(n->statements[i], out);
+                genBlock(n->statements[i], out);
             }
             fprintf(out, "    }\n");
             break;
         
         case NODE_FOR:
-            const char* name = n->text;
-            fprintf(out, "for(int %s = 0; %s < ", name, name);
-            genExpr(n->left, out);
+            fprintf(out, "for(int %s =  ", n->text);
+            if (n->right) {
+                // for(i = 0, times) → for(int i = 0; i < times; i++)
+                genExpr(n->left, out);          // start
+                fprintf(out, "; %s < ", n->text);
+                genExpr(n->right, out);         // end
+            }       
+            else {
+                // for(i, times) or for(times) → for(int i = 0; i < times; i++)
+                fprintf(out, "0; %s < ", n->text);
+                genExpr(n->left, out);          // end
+            }            
             fprintf(out, "; %s++) ", n->text);
-            genStmt(n->thenBranch, out);
+            genBlock(n->thenBranch, out);
             break;
 
-        case NODE_RETURN:
-            fprintf(out, "return ");
-            genExpr(n->expr, out);
-            fprintf(out, ";\n");
+        //rewritten from scratch to support return arr and use arr in params
+        case NODE_RETURN: {
+            //ARRAY RETURN
+            if (n->expr && n->expr->type == NODE_ARRAY) {
+                // return static buf
+                fprintf(out, "    {\n");
+                fprintf(out, "        int _tmp[] = ");
+                genExpr(n->expr, out);
+                fprintf(out, ";\n");
+                fprintf(out, "        memcpy(_awl_ret_buf, _tmp, sizeof(_tmp));\n");
+                fprintf(out, "        return _awl_ret_buf;\n");
+                fprintf(out, "    }\n");
+            } 
+            //VAR RETURN
+            else if (n->expr && n->expr->type == NODE_TEXT) {
+                // name arr
+                DataType t = getVarType(n->expr->text);
+                if (t == TYPE_ARRAY) {
+                    fprintf(out, "    return %s;\n", n->expr->text);
+                } 
+                else {
+                fprintf(out, "    return ");
+                genExpr(n->expr, out);
+                fprintf(out, ";\n");
+                }
+            } 
+            //DEFUALT RETURN
+            else {
+                fprintf(out, "    return ");
+                genExpr(n->expr, out);
+                fprintf(out, ";\n");
+            }
             break;
+        }   
 
         case NODE_EXPR_STMT:
             fprintf(out, "    ");
@@ -480,6 +609,24 @@ void genStmt(Node *n, FILE *out) {
             fprintf(out, "%s\n", n->text);
             break;
 
+        case NODE_ARRAY:
+            // save arguments details from array
+            DataType elementType = ExprType(n->left->args[0]);
+            //                         ↓translete type in str 
+            fprintf(out, "%s %s[] = ", getTypeStr(elementType), n->text);
+            genExpr(n->left, out);
+            fprintf(out, ";\n");
+            regVar(n->text, TYPE_ARRAY, elementType);
+            break;
+
+        case NODE_INDEX_ASSIGN:
+            fprintf(out, "    %s[", n->text);
+            genExpr(n->left, out);   // index
+            fprintf(out, "] = ");
+            genExpr(n->right, out);  // value
+            fprintf(out, ";\n");
+            break;
+            
         default:
             break;
     }
@@ -487,22 +634,45 @@ void genStmt(Node *n, FILE *out) {
 
 
 void genFuncDecl(Node *n, FILE *out) {
+
+    //we are creating a visibility zone.
     int savedCount = declaredCount; 
 
-    for (int i = 0; i < n->paramCount; i++) {
-        regVar(n->params[i].name, n->params[i].type, 0);
+
+
+    //we a save var earlier than everyone else
+    regVar(n->text, n->returnType, n->returnElementType);
+
+    if (n->returnType == TYPE_ARRAY) {
+        fprintf(out, "%s *%s(", getTypeStr(n->returnElementType), n->text);
+    } else {
+        fprintf(out, "%s %s(", getTypeStr(n->returnType), n->text);
     }
 
-    fprintf(out, "%s %s(", getTypeStr(n->returnType), n->text);
     for (int i = 0; i < n->paramCount; i++) {
         if (i > 0) fprintf(out, ", ");
-        fprintf(out, "%s %s", getTypeStr(n->params[i].type), n->params[i].name);
+        if(n->params[i].type == TYPE_ARRAY){
+            // array<int> → int *arr
+            fprintf(out, "%s *%s",
+                    getTypeStr(n->params[i].elementType),
+                    n->params[i].name);
+        }
+        else{
+            fprintf(out, "%s %s", getTypeStr(n->params[i].type), n->params[i].name);
+        }
     }
-
     fprintf(out, ") {\n");
+
+    //reg all params in declaredVars for use in f-string and print
+    for (int i = 0; i < n->paramCount; i++) {
+        regVar(n->params[i].name,
+               n->params[i].type,
+               n->params[i].elementType);
+    }
 
     if (!n->thenBranch){ 
         fprintf(out, "}\n\n"); 
+        declaredCount = savedCount;
         return; 
     }
 
@@ -575,24 +745,36 @@ void genImport(Node *n, FILE *out) {
 
 void genC(Node *ast, FILE *out) {
     
-    if (!ast) { printf("genC: NULL ast!\n"); return; }
+    if (!ast) { 
+        printf("genC: NULL ast!\n"); 
+        return; 
+    }
+    declaredCount = 0; // reset declared vars for each file
     
+    //IMPORT ALL
     fprintf(out, "#include <stdio.h>\n");
     fprintf(out, "#include <stdbool.h>\n");
-    fprintf(out, "%s\n", AUTOPRINTTYPE);
-    
     for (int i = 0; i < ast->stmtCount; i++) {
         if (ast->statements[i]->type == NODE_IMPORT) {
             genImport(ast->statements[i], out);
         }
     }
-    
+
+    //HELPER
+    fprintf(out, "%s\n", AUTOPRINTTYPE);// AUTO TYPE PRINT
+    //ARAYS TYPE IF YOU CREATE NEW ARR IN FUNC
+    fprintf(out, "#define AWL_ARRAY_RETURN_SIZE 256\n");
+    fprintf(out, "static int _awl_ret_buf[AWL_ARRAY_RETURN_SIZE];\n\n");
+
+    //FUNC DECL
     for (int i = 0; i < ast->stmtCount; i++) {
         if (ast->statements[i]->type == NODE_FUNC_DECL) {
             genFuncDecl(ast->statements[i], out);
         }
     }
     
+    //MAIN FUNC
+    declaredCount = 0; //<-- reset declared vars for main
     fprintf(out, "int main() {\n");
     for (int i = 0; i < pyFileCount; i++) {
         // "lib.py" -> modname = "lib"
@@ -609,6 +791,7 @@ void genC(Node *ast, FILE *out) {
         fprintf(out, "    _py_load(\"%s\", \"%s\");\n", path, modname);
     }
     
+    //ALL STATEMENTS AND EXPR
     for (int i = 0; i < ast->stmtCount; i++) {
         if (ast->statements[i]->type != NODE_FUNC_DECL) {
             genStmt(ast->statements[i], out);
@@ -619,41 +802,75 @@ void genC(Node *ast, FILE *out) {
 
 void genBin(const char *filename) {
     char compile_cmd[2048];
-    char flags[1024] = "";
+    char flagsComp[1024] = "";
     char remove_cmd[256];
     int res = 0;
+    
 
-    snprintf(compile_cmd, sizeof(compile_cmd), "gcc %s.c", filename);
+    snprintf(compile_cmd, sizeof(compile_cmd), "gcc -w %s.c", filename);
+    // detect gcc flag
+    if (flags.debugInfo)     strncat(flagsComp, " -g",
+                                     sizeof(flagsComp) - strlen(flagsComp) - 1);
+    if (flags.optimize1)     strncat(flagsComp, " -O1",
+                                     sizeof(flagsComp) - strlen(flagsComp) - 1);
+    if (flags.optimize2)     strncat(flagsComp, " -O2",
+                                     sizeof(flagsComp) - strlen(flagsComp) - 1);
+    if (flags.optimize3)     strncat(flagsComp, " -O3",
+                                     sizeof(flagsComp) - strlen(flagsComp) - 1);
+    if (flags.wallWarnings)  strncat(flagsComp, " -Wall",
+                                     sizeof(flagsComp) - strlen(flagsComp) - 1);
+    if (flags.wextra)        strncat(flagsComp, " -Wextra",
+                                     sizeof(flagsComp) - strlen(flagsComp) - 1);
+
 
     // Python flag
     if (hasPython) {
-        strncat(flags, " $(python3-config --includes --ldflags --embed)",
-                sizeof(flags) - strlen(flags) - 1);
+        strncat(flagsComp, " $(python3-config --includes --ldflags --embed)",
+                sizeof(flagsComp) - strlen(flagsComp) - 1);
     }
+
+    if (flags.emitAsm) {
+        //gen .s file
+        snprintf(compile_cmd, sizeof(compile_cmd), "gcc %s.c%s -S -o %s.s",
+                 filename, flagsComp, filename);
+        if (flags.verbose) printf("Assembling: %s\n", compile_cmd);
+        system(compile_cmd);
+
+        // compile .s file
+        snprintf(compile_cmd, sizeof(compile_cmd), "gcc %s.s%s -o %s",
+                 filename, flagsComp, filename);
+    } 
+    else {
+        snprintf(compile_cmd, sizeof(compile_cmd), "gcc %s.c%s -o %s",
+                 filename, flagsComp, filename);
+    }
+
+    if (flags.verbose) printf("Compiling: %s\n", compile_cmd);
 
     //out file
     char out[256];
     snprintf(out, sizeof(out), " -o %s", filename);
 
     // full command
-    strncat(compile_cmd, flags, sizeof(compile_cmd) - strlen(compile_cmd) - 1);
+    strncat(remove_cmd, flagsComp, sizeof(compile_cmd) - strlen(compile_cmd) - 1);
     strncat(compile_cmd, out, sizeof(compile_cmd) - strlen(compile_cmd) - 1);
 
-    printf("Compiling: %s\n", compile_cmd);
     res = system(compile_cmd);
     if (res != 0) {
         fprintf(stderr, "Compilation failed!\n");
     }
 
     snprintf(remove_cmd, sizeof(remove_cmd), "rm %s.c", filename);
-
-    printf("Executing: %s\n", compile_cmd);
-    res = system(compile_cmd);
-
-    if (res == 0) {
-        printf("Executing: %s\n", remove_cmd);
-        system(remove_cmd);
-    } else {
+ 
+    if (flags.verbose) printf("Binary: %s\n", filename);
+ 
+    //delete .c if keepc = false
+    if (!flags.keepC) {
+        char rm[520];
+        snprintf(rm, sizeof(rm), "rm %s.c", filename);
+        system(rm);
+    }
+    else {
         fprintf(stderr, "Compilation failed! Temporary .c file was preserved.\n");
     }
 }

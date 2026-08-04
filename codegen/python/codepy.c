@@ -128,11 +128,6 @@ PyModule parsePyFile(const char *path) {
 PyFunc *findPyFunc(const char *modname, const char *funcname) {
 
     for (int m = 0; m < pyModuleCount; m++) {
-         printf("module[%d] = '%s'\n", m, pyModuleNames[m]);
-         printf("module[%d] = '%s', funcs = %d\n",
-           m,
-           pyModuleNames[m],
-           pyModules[m].count);
         if (strcmp(pyModuleNames[m], modname) == 0) { 
             for (int f = 0; f < pyModules[m].count; f++) {
                 if (strcmp(pyModules[m].funcs[f].name, funcname) == 0) {

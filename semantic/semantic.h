@@ -67,6 +67,7 @@ typedef struct {
     //fields for functions
     int paramCount;                      // number of parameters (-1 = variadic/unknown)
     DataType paramTypes[MAX_FUNC_PARAMS]; // type params
+    DataType elementType;
 
     //fields for variables
     bool used;    // whether it is used (for the unused variable warning)

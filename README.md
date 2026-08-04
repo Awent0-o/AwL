@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🦉 AWL Compiler Version 0.8
+# 🦉 AWL Compiler Version 0.8.1
 
 **A custom toy programming language, compiled to native machine code.**
 
@@ -18,6 +18,27 @@
 - [Language Syntax](#-language-syntax)
 - [Roadmap](#%EF%B8%8F-roadmap)
 
+
+## 🆕 What's New in v0.8.1
+
+### 🚀 Language
+- Added support for arrays in func.
+- Added `for`, `while`, `if / else` its own scope
+
+### ⚙️ Compiler
+- Command-line flags:
+  - `-h`, `--help`
+  - `--version`
+  - `-v`
+  - `-c`
+  - `-k`
+  - `-S`
+  - `-t`
+  - `-g`
+  - `-O1`, `-O2`, `-O3`
+  - `-Wall`
+  - `-Wextra`
+  - `-o <file>`
 
 ## ✨ Features
 
@@ -104,7 +125,7 @@ return      := 'return' expr ';'
 
 expr        := comparison
 
-comparison  := arith (('<' | '>' | '<=' | '>=' | '==' | '!=') arith)?
+comparison  := arith (('<' | '>' | '<=' | '>=' | '==' | '/=') arith)?
 
 arith       := term (('+' | '-') term)*
 
@@ -155,6 +176,6 @@ call        := IDENT '(' args? ')'
 - [x] Functions
 - [x] Arrays
 - [x] Lib, you can made his on python, c, awl (for now)
-- [x] Semantic
+- [x] Semantic but bad for it, i could add line detect
 
 ---

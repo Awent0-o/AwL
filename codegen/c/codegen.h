@@ -21,12 +21,7 @@
 "    default: printf(\"undefine type\") \\\n" \
 ")\n\n"
 
-typedef struct {
-    char name[64];
-    DataType type;
-    DataType elementType;
-} Variable;
-
+void genStmt(Node *stmt, FILE *out);
 
 void genC(Node *ast, FILE *out);
 

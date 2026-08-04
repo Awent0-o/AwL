@@ -86,6 +86,7 @@ static Symbol *findSymbol(const char *name) {
         }
         scope = scope->parent;
     }
+
     return NULL;
 }
 
@@ -593,6 +594,7 @@ static const char *getTypeName(DataType t) {
         case TYPE_STRING: return "string";
         case TYPE_BOOL:   return "bool";
         case TYPE_VOID:   return "void";
+        case TYPE_ARRAY:  return "array";
         default:          return "unknown";
     }
 }
@@ -605,6 +607,7 @@ static DataType getExprType(Node *n) {
         case NODE_FLOAT:   return TYPE_FLOAT;
         case NODE_STRING:  return TYPE_STRING;
         case NODE_BOOL:    return TYPE_BOOL;
+        case NODE_ARRAY:   return TYPE_ARRAY;
 
         case NODE_TEXT: {
             Symbol *sym = findSymbol(n->text);
@@ -649,8 +652,8 @@ static DataType getExprType(Node *n) {
 // int == float, translation
 static bool typesCompatible(DataType expected, DataType actual) {
     if (expected == actual) return true;
-    // int you can pass it where a float is expected.
     if (expected == TYPE_FLOAT && actual == TYPE_INT) return true;
+    if (expected == TYPE_ARRAY && actual == TYPE_ARRAY) return true;
     return false;
 }
 
@@ -833,13 +836,22 @@ static void analyzeStmt(Node *n) {
 
         case NODE_ASSIGN: {
             analyzeExpr(n->left, n->number); 
-
             DataType exprType = getExprType(n->left);
             Symbol *existing = findSymbol(n->text);
+            DataType elemType = TYPE_INT;
+
+            //for array assignment, we need to determine the element type
+            if (n->left && n->left->type == NODE_ARRAY) {
+                elemType = (n->left->argCount > 0) 
+                           ? getExprType(n->left->args[0]) 
+                           : TYPE_INT;
+                exprType = TYPE_ARRAY;
+            }
 
             if (!existing) {
                 // new var, reg
                 Symbol *sym = addSymbol(n->text, exprType, ORIGIN_AWL, 0);
+                sym->elementType = elemType;
                 if (sym) sym->used = false; //not used
             } else {
                 // reassignment — checking type compatibility
@@ -898,10 +910,11 @@ static void analyzeStmt(Node *n) {
 
         case NODE_FOR: {
             analyzeExpr(n->left, 0); // range cycle
+            if (n->right) analyzeExpr(n->right, 0);
 
             pushScope();
             // 'i' for cycle 'for'
-            Symbol *iSym = addSymbol("i", TYPE_INT, ORIGIN_AWL, 0);
+            Symbol *iSym = addSymbol(n->text, TYPE_INT, ORIGIN_AWL, 0);
             if (iSym) iSym->used = true; 
 
             if (n->thenBranch) {
@@ -922,22 +935,27 @@ static void analyzeStmt(Node *n) {
             analyzeExpr(n->expr, 0);
             break;
 
-        case NODE_INDEX_ASSIGN: {
-            Symbol *sym = findSymbol(n->text);
-            if (!sym) {
-                addError(SEM_ERR_UNDEFINED_VAR, 0, true,
-                         "Error: undefined variable '%s'", n->text);
-            } else {
-                sym->used = true;
+        //rewrite array declaration: arr = [1, 2, 3] 
+        case NODE_ARRAY: {
+            // arr = [1, 2, 3]
+            if (!n->text) break;
+            DataType elemType = TYPE_INT;
+            if (n->left && n->left->argCount > 0) {
+                elemType = getExprType(n->left->args[0]);
             }
-            analyzeExpr(n->left, 0);  // index
-            analyzeExpr(n->right, 0); // new value
+        
+            Symbol *existing = findSymbol(n->text);
+            if (!existing) {
+                Symbol *sym = addSymbol(n->text, TYPE_ARRAY, ORIGIN_AWL, n->line);
+                if (sym) {
+                    sym->elementType = elemType;
+                    sym->used = false;
+                }
+            } else {
+                existing->used = true;
+            }
             break;
         }
-
-        case NODE_FUNC_DECL:
-            // skip — functions are analyzed separately in analyzeAST
-            break;
 
         default:
             break;
@@ -965,6 +983,7 @@ static void analyzeFunc(Node *n) {
                               n->params[i].type,
                               ORIGIN_AWL, 0);
         if (p) {
+            p->elementType = n->params[i].elementType;
             p->used = true; // params used
         }
     }
@@ -983,6 +1002,17 @@ static void analyzeFunc(Node *n) {
                  n->text, getTypeName(n->returnType));
     }
 
+    // params array reg with size
+    for (int i = 0; i < n->paramCount; i++) {
+        Symbol *p = addSymbol(n->params[i].name,
+          n->params[i].type,
+          ORIGIN_AWL, 0);
+        if (p) {
+            p->elementType = n->params[i].elementType;
+            p->used = true;
+        }
+    }
+    
     popScope();
 
     // restoring context
@@ -1016,6 +1046,7 @@ SemResult analyzeAST(Node *ast) {
         Node *stmt = ast->statements[i];
         if (!stmt || stmt->type != NODE_FUNC_DECL) continue;
 
+
         Symbol *sym = addSymbol(stmt->text, stmt->returnType, ORIGIN_AWL, 0);
         if (sym) {
             sym->isFunc     = true;
@@ -1023,6 +1054,34 @@ SemResult analyzeAST(Node *ast) {
             sym->used       = true;
             for (int j = 0; j < stmt->paramCount; j++) {
                 sym->paramTypes[j] = stmt->params[j].type;
+            }
+        }
+    }
+
+    //REG GLOBAL VARS
+    for (int i = 0; i < ast->stmtCount; i++) {
+        Node *s = ast->statements[i];
+        if (!s) continue;
+
+        // NODE_ASSIGN 
+        if (s->type == NODE_ASSIGN) {
+            if (!s->text) continue;
+            DataType exprType = s->left ? getExprType(s->left) : TYPE_INT;
+            Symbol *sym = addSymbol(s->text, exprType, ORIGIN_AWL, s->line);
+            if (sym) { sym->used = false; }
+        }
+
+        // NODE_ARRAY
+        if (s->type == NODE_ARRAY) {
+            if (!s->text) continue;
+            DataType elemType = TYPE_INT;
+            if (s->left && s->left->argCount > 0) {
+                elemType = getExprType(s->left->args[0]);
+            }
+            Symbol *sym = addSymbol(s->text, TYPE_ARRAY, ORIGIN_AWL, s->line);
+            if (sym) {
+                sym->elementType = elemType;
+                sym->used = false;
             }
         }
     }

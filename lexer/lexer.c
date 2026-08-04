@@ -24,7 +24,6 @@ TokenList tokenize(const char *src, size_t len) {
         if (isspace(c)) { pos++; continue; }
 
         //strings
-        printf("c='%c' (%d)\n", c, c);
         if (c == '"') {
             pos++; // skip opening "
             size_t start = pos;
@@ -109,7 +108,7 @@ TokenList tokenize(const char *src, size_t len) {
             else if (strcmp(buf, "float") == 0)  addToken(&list, TOK_KW_FLOAT, buf, line);
             else if (strcmp(buf, "string") == 0) addToken(&list, TOK_KW_STRING, buf, line);
             else if (strcmp(buf, "bool") == 0)   addToken(&list, TOK_KW_BOOL, buf, line);
-            else if (strcmp(buf, "void") == 0)   addToken(&list, TOK_KW_VOID, buf, line);
+            else if (strcmp(buf, "array") == 0) addToken(&list, TOK_KW_ARRAY, buf, line);
             else addToken(&list, TOK_TEXT, buf, line);
             continue;
         }
@@ -126,8 +125,8 @@ TokenList tokenize(const char *src, size_t len) {
             pos += 2; 
             continue;
         }
-        if (c == '!' && pos + 1 < len && src[pos + 1] == '=') {
-            addToken(&list, TOK_NE, "!=", line); 
+        if (c == '/' && pos + 1 < len && src[pos + 1] == '=') {
+            addToken(&list, TOK_NE, "/=", line); 
             pos += 2; 
             continue;
         }
@@ -169,7 +168,6 @@ TokenList tokenize(const char *src, size_t len) {
             pos += 2;  // skip @{
             size_t start = pos;
             while (pos < len - 1 && !(src[pos] == '}')) {
-                printf("%zu: '%c' (%d)\n", pos, src[pos], (unsigned char)src[pos]);
                 pos++;
             }
             char buf[4096];

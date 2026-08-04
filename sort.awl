@@ -1,0 +1,43 @@
+func partition(array<int> arr, int low, int high) -> int{
+    pivot = arr[high];
+    i = low-1;
+
+    for(j = low, high){
+        if(arr[j] <= pivot){
+            i++;
+            t = arr[i]; 
+            arr[i] = arr[j];
+            arr[j] = t;
+        }
+    }
+    t = arr[i+1];
+    arr[i+1] = arr[high];
+    arr[high] = t;
+
+    return i+1;
+}
+
+func quick_sort(array<int> arr, int low, int high){
+    if(low < high){
+        pi = partition(arr, low, high);
+        quick_sort(arr, low, pi-1);
+        quick_sort(arr, pi+1, high);
+    }
+}
+
+func printArray(array<int> arr, int size){
+    for(size){
+        print arr[i] "\n";
+    }
+}
+
+arr = [1, 10, 2, 3, 9, 4, 7, 5, 8, 6];
+s = 0;
+@{s = sizeof(arr)/sizeof(arr[0]);}
+
+print "not sorted\n";
+printArray(arr, s);
+
+quick_sort(arr, 0, s-1);
+print "sorted\n";
+printArray(arr, s);
