@@ -12,16 +12,18 @@ typedef enum TokenType{
     TOK_NUMBER, TOK_TEXT, TOK_STRING, TOK_FSTRING, TOK_FLOAT, TOK_ASSIGN,     
 //  ↓+        ↓-         ↓*        ↓/          ↓++      ↓-- 
     TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_INC, TOK_DEC, 
-//  ↓<      ↓>       ↓<=     ↓>=     ↓=      ↓!         
-    TOK_LT, TOK_GT, TOK_LE, TOK_GE, TOK_EQ, TOK_NE,
+//  ↓<      ↓>       ↓<=     ↓>=     ↓==      ↓!=       ↓!        ↓&&        ↓||
+    TOK_LT, TOK_GT, TOK_LE, TOK_GE, TOK_EQ, TOK_NE, TOK_NOT, TOK_AND, TOK_OR,
 //  |(                   )| |{                   }| |[                       ]| 
     TOK_LPAREN, TOK_RPAREN, TOK_LBRACE, TOK_RBRACE, TOK_LBRACKET, TOK_RBRACKET,
 //  ↓;        ↓,         ↓.
     TOK_SEMI, TOK_COMMA, TOK_DOT,
+//  ↓&
+    TOK_AMP,
 //defulat KW
             TOK_KW_IF, TOK_KW_ELSE, TOK_KW_WHILE, TOK_KW_FOR, TOK_KW_PRINT, TOK_KW_IMPORT, 
 //FUNC RETURN KW
-            TOK_KW_INT, TOK_KW_FLOAT, TOK_KW_STRING, TOK_KW_BOOL, TOK_KW_VOID, TOK_KW_ARRAY, 
+            TOK_KW_INT, TOK_KW_FLOAT, TOK_KW_STRING, TOK_KW_BOOL, TOK_KW_VOID, TOK_KW_ARRAY, TOK_KW_PTR, 
 //FUNC DEFUALT KW
             TOK_KW_FUNC, TOK_KW_RETURN, TOK_ARROW,
     TOK_EOF,                // empty 
@@ -37,7 +39,7 @@ typedef struct Token{
 
     char text[4096];
 
-    //for semantic
+    //for diagnostics
     int line;
 
     int colume;

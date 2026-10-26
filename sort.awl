@@ -31,13 +31,15 @@ func printArray(array<int> arr, int size){
     }
 }
 
-arr = [1, 10, 2, 3, 9, 4, 7, 5, 8, 6];
-s = 0;
-@{s = sizeof(arr)/sizeof(arr[0]);}
-
-print "not sorted\n";
-printArray(arr, s);
-
-quick_sort(arr, 0, s-1);
-print "sorted\n";
-printArray(arr, s);
+func main(){
+    arr = [1, 10, 2, 3, 9, 4, 7, 5, 8, 6];
+    s = 0;
+    @{s = sizeof(arr)/sizeof(arr[0]);}
+    
+    print "not sorted\n";
+    printArray(arr, s);
+    
+    quick_sort(arr, 0, s-1);
+    print "sorted\n";
+    printArray(arr, s);
+}

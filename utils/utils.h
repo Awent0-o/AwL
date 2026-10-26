@@ -36,7 +36,6 @@ typedef struct {
 //UTILS VAR
 extern CompilerFlags flags;
 extern bool hasPython;
-extern bool hasCImport;
 extern bool compileThis;
 extern char pythonFlags[512];
 

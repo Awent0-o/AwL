@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🦉 AWL Compiler Version 0.8.1
+# 🦉 AWL Compiler Version 0.8.2
 
 **A custom toy programming language, compiled to native machine code.**
 
@@ -24,6 +24,9 @@
 ### 🚀 Language
 - Added support for arrays in func.
 - Added `for`, `while`, `if / else` hes own scope
+- Added pointers and addresses: `int* p`, `ptr<int>`, `p = &x`, `*p = 5`
+- Added logical operators: `!`, `!=`, `&&`, `||`
+- `func main()` is optional and can be written without `-> int`
 
 ### ⚙️ Compiler
 - Command-line flags:
@@ -49,9 +52,11 @@
 | if / else, while / for                                | ✅worked |
 | Functions                                             | ✅worked |
 | Arrays but without opperands                          | ✅worked |
+| Pointers & addresses                                  | ✅worked |
+| Logical operators `!`, `!=`, `&&`, `\|\|`             | ✅worked |
+| Optional `func main()`                                | ✅worked |
 | Integretion C code                                    | ✅worked |
 | Standard library                                      | ✅worked |
-| Semantic analyze                                      | ✅worked |
 
 ## ⬇️ Example
 
@@ -94,7 +99,7 @@ WIN
 git clone https://github.com/Awent0-o/AwL
 Download gcc from mingw/msys2 or wsl
 cd AwL
-if mingw/msys2 gcc main.c lexer/lexer.c parser/parser.c codegen/codegen.c -o awl.exe
+if mingw/msys2 gcc main.c lexer/lexer.c parser/parser.c parser/expr_parser.c parser/stmt_parser.c parser/func_parser.c codegen/c/codegen.c codegen/c/utils_codegen.c codegen/c/expr_codegen.c codegen/c/stmt_codegen.c codegen/c/import_codegen.c codegen/c/bin_codegen.c codegen/python/codepy.c utils/flags.c utils/file_utils.c utils/string_utils.c -o awl.exe
 if wsl ./awl main.awl
 ```
 ## 📖 Language Syntax
@@ -103,15 +108,24 @@ if wsl ./awl main.awl
 <summary>📖 Click to see full grammar</summary>
 
 
-program     := (funcDecl | statement)*
+program     := (funcDecl | statement)*   (func main is optional)
 
 import      := 'import' path (math -> c, libs/hello.py -> py, libs/add.awl -> awl) ';'
 
-funcDecl    := 'func' IDENT '(' params? ')' block
+funcDecl    := 'func' IDENT '(' params? ')' ('->' type)? block
 
-statement   := assign | print | if | while | return | block | exprStmt
+param       := type IDENT
+
+type        := 'int' | 'float' | 'string' | 'bool' | 'void'
+             | 'array' '<' type '>'
+             | 'ptr' '<' type '>'
+             | type '*'
+
+statement   := assign | derefAssign | print | if | while | return | block | exprStmt
 
 assign      := IDENT '=' expr ';'
+
+derefAssign := '*' unary '=' expr ';'
 
 print       := 'print' "string" expr expr ';' | 'print' f"string: {expr}" ';'
 
@@ -123,15 +137,21 @@ for         := 'for' '('i, times')' block (i not necessarily)
 
 return      := 'return' expr ';'
 
-expr        := comparison
+expr        := logicalOr
 
-comparison  := arith (('<' | '>' | '<=' | '>=' | '==' | '/=') arith)?
+logicalOr   := logicalAnd ('||' logicalAnd)*
+
+logicalAnd  := comparison ('&&' comparison)*
+
+comparison  := arith (('<' | '>' | '<=' | '>=' | '==' | '!=' | '/=') arith)?
 
 arith       := term (('+' | '-') term)*
 
-term        := factor (('' | '/') factor)
+term        := unary (('*' | '/') unary)*
 
-factor      := NUMBER | IDENT | call | '(' expr ')'
+unary       := '!' unary | '&' unary | '*' unary | factor
+
+factor      := NUMBER | IDENT | call | '(' expr ')' | '[' args? ']'
 
 call        := IDENT '(' args? ')'
 </details>
@@ -150,23 +170,51 @@ call        := IDENT '(' args? ')'
 
 │   ├── parser.h
 
-│   └── parser.c
+│   ├── parser.c          # tokens, program, blocks, statements, imports
+
+│   ├── expr_parser.c     # expressions and arrays
+
+│   ├── stmt_parser.c     # if / while / for / print / return / assign
+
+│   └── func_parser.c     # functions and type annotations
 
 ├── codegen/
 
-│   ├── codegen.h
+│   ├── c/
 
-│   └── codegen.c
+│   │   ├── codegen.h
 
-├── semantic/
+│   │   ├── codegen_internal.h
 
-│   ├── semantic.h
+│   │   ├── codegen.c         # top-level C generation
 
-│   └── semantic.c
+│   │   ├── utils_codegen.c   # variable table and type helpers
+
+│   │   ├── expr_codegen.c    # expressions and f-strings
+
+│   │   ├── stmt_codegen.c    # statements and functions
+
+│   │   ├── import_codegen.c  # .awl / .py / C imports
+
+│   │   └── bin_codegen.c     # gcc invocation
+
+│   └── python/
+
+│       ├── codepy.h
+
+│       └── codepy.c
+
+├── utils/
+
+│   ├── utils.h
+
+│   ├── flags.c           # CLI flags and help
+
+│   ├── file_utils.c      # file reading
+
+│   └── string_utils.c    # string helpers
 
 ├── main.c
-
-├── main.awl
 
 └── awl
 
@@ -176,6 +224,8 @@ call        := IDENT '(' args? ')'
 - [x] Functions
 - [x] Arrays
 - [x] Lib, you can made his on python, c, awl (for now)
-- [x] Semantic but bad for it, i could add line detect
+- [x] Pointers, addresses and dereferencing
+- [x] Logical operators and optional `main`
+- [ ] Semantic analysis (removed in this version, planned rewrite)
 
 ---

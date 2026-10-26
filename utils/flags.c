@@ -52,12 +52,12 @@ void parseArgs(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
 
-        //input file — any argument ending in .awl 
+        //input file — any argument ending in .awl
         if (strlen(arg) > 4 &&
             strcmp(arg + strlen(arg) - 4, ".awl") == 0) {
             strncpy(flags.inputFile, arg, sizeof(flags.inputFile) - 1);
 
-            // output name = file name .awl 
+            // output name = file name .awl
             strncpy(flags.outputName, arg, sizeof(flags.outputName) - 1);
             char *dot = strrchr(flags.outputName, '.');
             if (dot) *dot = '\0';
@@ -69,7 +69,7 @@ void parseArgs(int argc, char *argv[]) {
             flags.showHelp = true;
         } else if (strcmp(arg, "--version") == 0) {
             flags.showVersion = true;
-        } 
+        }
         else if (strcmp(arg, "-o") == 0) {
             if (i + 1 >= argc) {
                 fprintf(stderr, RED "Error: " WHITE "-o requires an output filename\n");
@@ -109,33 +109,6 @@ void parseArgs(int argc, char *argv[]) {
     }
 }
 
-
-const char *get_file_ext(const char *filename) {
-    const char *dot = strrchr(filename, '.');
-    if(!dot || dot == filename) return "";
-    return dot + 1;
-}
-
-char *readFile(const char *path, size_t *outLen) {
-    FILE *f = fopen(path, "rb");
-    if (!f) {
-        fprintf(stderr, "not such file: %s\n", path);
-        exit(1);
-    }
-
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    char *buffer = malloc(size + 1);
-    fread(buffer, 1, size, f);
-    buffer[size] = '\0';
-
-    fclose(f);
-    *outLen = (size_t)size;
-    return buffer;
-}
-
 void initFlags() {
     //python flag
     FILE *f = popen("python3-config --includes --ldflags --embed 2>/dev/null", "r");
@@ -144,18 +117,4 @@ void initFlags() {
         pclose(f);
         pythonFlags[strcspn(pythonFlags, "\n")] = '\0';
     }
-}
-
-char *_strdup(const char *src) {
-    if (src == NULL)
-        return NULL;
-
-    size_t len = strlen(src) + 1;
-    char *dst = malloc(len);
-
-    if (dst == NULL)
-        return NULL;
-
-    memcpy(dst, src, len); 
-    return dst;
 }

@@ -31,6 +31,10 @@ Node *parseTerm(Parser *p);
 
 Node *parseExpr(Parser *p);
 
+Node *parseLogicalOr(Parser *p);
+
+Node *parseLogicalAnd(Parser *p);
+
 Node *parseProgram(Parser *p);
 
 Node *parseStatement(Parser *p);

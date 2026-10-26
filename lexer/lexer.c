@@ -108,7 +108,9 @@ TokenList tokenize(const char *src, size_t len) {
             else if (strcmp(buf, "float") == 0)  addToken(&list, TOK_KW_FLOAT, buf, line);
             else if (strcmp(buf, "string") == 0) addToken(&list, TOK_KW_STRING, buf, line);
             else if (strcmp(buf, "bool") == 0)   addToken(&list, TOK_KW_BOOL, buf, line);
+            else if (strcmp(buf, "void") == 0)   addToken(&list, TOK_KW_VOID, buf, line);
             else if (strcmp(buf, "array") == 0) addToken(&list, TOK_KW_ARRAY, buf, line);
+            else if (strcmp(buf, "ptr") == 0)   addToken(&list, TOK_KW_PTR, buf, line);
             else addToken(&list, TOK_TEXT, buf, line);
             continue;
         }
@@ -123,6 +125,21 @@ TokenList tokenize(const char *src, size_t len) {
         if (c == '=' && pos + 1 < len && src[pos + 1] == '=') {
             addToken(&list, TOK_EQ, "==", line);
             pos += 2; 
+            continue;
+        }
+        if (c == '!' && pos + 1 < len && src[pos + 1] == '=') {
+            addToken(&list, TOK_NE, "!=", line);
+            pos += 2;
+            continue;
+        }
+        if (c == '&' && pos + 1 < len && src[pos + 1] == '&') {
+            addToken(&list, TOK_AND, "&&", line);
+            pos += 2;
+            continue;
+        }
+        if (c == '|' && pos + 1 < len && src[pos + 1] == '|') {
+            addToken(&list, TOK_OR, "||", line);
+            pos += 2;
             continue;
         }
         if (c == '/' && pos + 1 < len && src[pos + 1] == '=') {
@@ -183,6 +200,8 @@ TokenList tokenize(const char *src, size_t len) {
             case '=': addToken(&list, TOK_ASSIGN, "=", line); break;
             case '<': addToken(&list, TOK_LT, "<", line); break;
             case '>': addToken(&list, TOK_GT, ">", line); break;
+            case '!': addToken(&list, TOK_NOT, "!", line); break;
+            case '&': addToken(&list, TOK_AMP, "&", line); break;
             case '+': addToken(&list, TOK_PLUS, "+", line); break;
             case '-': addToken(&list, TOK_MINUS, "-", line); break;
             case '*': addToken(&list, TOK_STAR, "*", line); break;

@@ -13,7 +13,8 @@ typedef enum {
     TYPE_ARRAY = 4,
     TYPE_AUTO = 5,
     TYPE_CALL = 6,
-    TYPE_VOID = 7
+    TYPE_VOID = 7,
+    TYPE_POINTER = 8
 } DataType;
 
 typedef struct {
@@ -33,10 +34,12 @@ typedef enum NodeType{
                 NODE_NUMBER, NODE_STRING, NODE_FSTRING, NODE_PRINT_LIST, NODE_TEXT, NODE_BINOP, NODE_COMPARE, NODE_ASSIGN,
 //DEFUALT KW
                 NODE_PRINT, NODE_IF, NODE_WHILE, NODE_FOR, NODE_BLOCK, NODE_IMPORT,
-//DEFUALT FUNC KW                                       ↓only for semantic
+//DEFUALT FUNC KW                                       ↓for diagnostics
                 NODE_FUNC_DECL, NODE_CALL, NODE_RETURN, NODE_PY_CALL, 
 //TYPE FOR RETURN
                 NODE_FLOAT, NODE_BOOL, NODE_ARRAY, NODE_INDEX, NODE_INDEX_ASSIGN,
+//POINTERS / LOGICAL UNARY
+                NODE_ADDR, NODE_DEREF, NODE_DEREF_ASSIGN, NODE_NOT,
 
     NODE_EXPR_STMT,
     NODE_IGNOR,     //`comment
@@ -47,7 +50,7 @@ typedef struct Node {
 
     Token token;
     NodeType type;
-    int line;       // <-- for semantic, i dont use this but i want to keep it for future use
+    int line;       // <-- source line for diagnostics
     int number;
     char *text;
     char *module;

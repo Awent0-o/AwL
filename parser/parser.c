@@ -1,7 +1,5 @@
 #include "parser.h"
 
-static DataType lastElementType;
-
 Token peek(Parser *p) {
     return p->tokens->tokens[p->pos];
 }
@@ -28,247 +26,6 @@ Node *newNode(NodeType type) {
     Node *n = calloc(1, sizeof(Node));
     n->type = type;
     return n;
-}
-
-// factor := NUMBER | TEXT | '(' expr ')'
-Node *parseFactor(Parser *p) {
-    Token t = peek(p);
-
-    if (t.type == TOK_MINUS) {
-        advance(p);
-        Token num = peek(p);
-
-        if (num.type == TOK_NUMBER) {
-            advance(p);
-            Node *n = newNode(NODE_NUMBER);
-            n->number = -atoi(num.text);
-            return n;
-        }
-        if (num.type == TOK_FLOAT) {
-            advance(p);
-            Node *n = newNode(NODE_FLOAT);
-            n->fvalue = -(float)atof(num.text);
-            return n;
-        }
-
-        // -expr: -(a + b)
-        // gen (0 - expr)
-        Node *zero = newNode(NODE_NUMBER);
-        zero->number = 0;
-        Node *right = parseFactor(p);
-        Node *n = newNode(NODE_BINOP);
-        n->op    = TOK_MINUS;
-        n->left  = zero;
-        n->right = right;
-        return n;
-    }
-
-    if (t.type == TOK_NUMBER) {
-        advance(p);
-        Node *n = newNode(NODE_NUMBER);
-        n->number = atoi(t.text);
-        return n;
-    }
-
-    if (t.type == TOK_STRING) {
-        advance(p);
-        Node *n = newNode(NODE_STRING);
-        n->text = _strdup(t.text);
-        return n;
-    }
-
-    if (t.type == TOK_FLOAT) {
-        advance(p);
-        Node *n = newNode(NODE_FLOAT);
-        n->fvalue = atof(t.text);  
-        return n;
-    }
-
-    if (t.type == TOK_TRUE) {
-        advance(p);
-        Node *n = newNode(NODE_BOOL);
-        n->number = 1;
-        return n;
-    }
-
-    if (t.type == TOK_FALSE) {
-        advance(p);
-        Node *n = newNode(NODE_BOOL);
-        n->number = 0;
-        return n;
-    }
-
-    if (t.type == TOK_LBRACKET){
-        return parseArray(p);
-    }
-
-    if (t.type == TOK_TEXT) {
-        advance(p);
-
-        // array index: Name = [expr, expr2];
-        if (check(p, TOK_LBRACKET)) {
-            advance(p);  // '['
-            Node *n = newNode(NODE_INDEX);
-            n->text = _strdup(t.text); // name
-            n->left = parseExpr(p);    // index
-            expect(p, TOK_RBRACKET, "]");
-            return n;
-        }
-
-        //lib.func(args) — call py func
-        if (check(p, TOK_DOT)) {
-            advance(p);  // '.'
-            Token func = expect(p, TOK_TEXT, "function name");
-            expect(p, TOK_LPAREN, "(");
-
-            Node *n = newNode(NODE_PY_CALL);
-
-            //name lib
-            n->module = _strdup(t.text);
-            
-            // name func
-            n->text = _strdup(func.text);
-
-            n->args = NULL;
-            n->argCount = 0;
-
-            if (!check(p, TOK_RPAREN)) {
-                Node *arg = parseExpr(p);
-                n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
-                n->args[n->argCount++] = arg;
-
-                while (check(p, TOK_COMMA)) {
-                    advance(p);
-                    arg = parseExpr(p);
-                    n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
-                    n->args[n->argCount++] = arg;
-                }
-            }
-            expect(p, TOK_RPAREN, ")");
-            return n;
-        }
-
-        // func: Name '(' args? ')'
-        if (check(p, TOK_LPAREN)) {
-            advance(p); // '('
-            Node *n = newNode(NODE_CALL);
-            n->line = t.line;
-            n->text = _strdup(t.text);
-            n->args = NULL;
-            n->argCount = 0;
-
-            if (!check(p, TOK_RPAREN)) {
-                Node *arg = parseExpr(p);
-                n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
-                n->args[n->argCount++] = arg;
-
-                while (check(p, TOK_COMMA)) {
-                    advance(p);
-                    arg = parseExpr(p);
-                    n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
-                    n->args[n->argCount++] = arg;
-                }
-            }
-
-            expect(p, TOK_RPAREN, ")");
-            return n;
-        }
-
-        // defualt var
-        Node *n = newNode(NODE_TEXT);
-        n->line = t.line;   
-        n->text = _strdup(t.text);
-        return n;
-    }
-
-    if (t.type == TOK_LPAREN) {
-        advance(p);
-        Node *n = parseExpr(p);
-        expect(p, TOK_RPAREN, ")");
-        return n;
-    }
-
-    printf("Unknown symbol '%s' in line %d\n", t.text, t.line);
-    exit(1);
-}
-
-// * and / multiplication and division
-Node *parseTerm(Parser *p) {
-    Node *left = parseFactor(p);
-    while (check(p, TOK_STAR) || check(p, TOK_SLASH)) {
-        Token op = advance(p);
-        Node *right = parseFactor(p);
-        Node *n = newNode(NODE_BINOP);
-        n->op = op.type;
-        n->left = left;
-        n->right = right;
-        left = n;
-    }
-    return left;
-}
-
-// comparison <, >, <=, >=, ==, !=, true, false
-Node *parseComparison(Parser *p) {
-    Node *left = parseArith(p);  
-
-    if (check(p, TOK_LT) || check(p, TOK_GT) || check(p, TOK_LE) ||
-        check(p, TOK_GE) || check(p, TOK_EQ) || check(p, TOK_NE)) {
-        Token op = advance(p);
-        Node *right = parseArith(p);
-        Node *n = newNode(NODE_COMPARE);
-        n->op = op.type;
-        n->left = left;
-        n->right = right;
-        return n;
-    }
-    else if (check(p, TOK_TRUE) || check(p, TOK_FALSE)) {
-        Token op = advance(p);
-        Node *n = newNode(NODE_BOOL);
-        n->number = (op.type == TOK_TRUE) ? 1 : 0;
-        return n;
-    }
-
-    return left;
-}
-
-Node *parseExpr(Parser *p) {
-    return parseComparison(p);
-}
-
-// +, -, ++, -- arrefmetic operations
-Node *parseArith(Parser *p) {
-    Node *left = parseTerm(p);
-    while (check(p, TOK_PLUS) || check(p, TOK_MINUS) || check(p, TOK_INC) || check(p, TOK_DEC)){
-        if (check(p, TOK_INC)) {
-            advance(p);
-
-            Node *n = newNode(NODE_BINOP);
-            n->op = TOK_INC;
-            n->left = left;
-            left = n;
-            continue;
-        }
-
-        if (check(p, TOK_DEC)) {
-            advance(p);
-
-            Node *n = newNode(NODE_BINOP);
-            n->op = TOK_DEC;
-            n->left = left;
-            left = n;
-            continue;
-        }
-        else{
-            Token op = advance(p);
-            Node *right = parseTerm(p);
-            Node *n = newNode(NODE_BINOP);
-            n->op = op.type;
-            n->left = left;
-            n->right = right;
-            left = n;
-        }
-    }
-    return left;
 }
 
 // program := (funcDecl | statement)*
@@ -303,30 +60,31 @@ Node *parseBlock(Parser *p) {
         n->statements[n->stmtCount++] = stmt;
     }
 
-    expect(p, TOK_RBRACE, "}");  
+    expect(p, TOK_RBRACE, "}");
     return n;
 }
+
 // statement := assign | print | if | while | block
 Node *parseStatement(Parser *p) {
 
     // IF BLOCK
     if (check(p, TOK_KW_IF))     return parseIf(p);
- 
-    // WHILE BLOCK 
+
+    // WHILE BLOCK
     if (check(p, TOK_KW_WHILE))  return parseWhile(p);
- 
-    // RETURN  
+
+    // RETURN
     if (check(p, TOK_KW_RETURN)) return parseReturn(p);
- 
-    // PRINT BLOCK 
+
+    // PRINT BLOCK
     if (check(p, TOK_KW_PRINT))  return parsePrint(p);
-     
-    //COMMENT BLOCK 
+
+    //COMMENT BLOCK
     if(check(p, TOK_IGNOR))      return parseIgnor(p);
- 
-    // BLOCK '{ ... }' 
+
+    // BLOCK '{ ... }'
     if (check(p, TOK_LBRACE))    return parseBlock(p);
-    
+
     //ARRAY BLOCK
     if (check(p, TOK_LBRACKET))  return parseArray(p);
 
@@ -344,24 +102,48 @@ Node *parseStatement(Parser *p) {
         return n;
     }
 
+    // DEREF ASSIGN: *p = value;
+    if (check(p, TOK_STAR)) {
+        int save = p->pos;
+        Node *e = parseExpr(p);
+
+        if (check(p, TOK_ASSIGN) && e->type == NODE_DEREF) {
+            advance(p); // '='
+            Node *val = parseExpr(p);
+            expect(p, TOK_SEMI, ";");
+
+            Node *n = newNode(NODE_DEREF_ASSIGN);
+            n->left  = e;
+            n->right = val;
+            return n;
+        }
+
+        p->pos = save;
+        e = parseExpr(p);
+        expect(p, TOK_SEMI, ";");
+        Node *n = newNode(NODE_EXPR_STMT);
+        n->expr = e;
+        return n;
+    }
+
     // ASING BLOCK
     //rewrite for assing array and var
     if (check(p, TOK_TEXT)) {
         int save = p->pos;
         Token name = advance(p); //name array or var
-        
+
         if (check(p, TOK_LBRACKET)) {
             // arr[i] = value or arr[i]
             advance(p);              // '['
             Node *idx = parseExpr(p);
             expect(p, TOK_RBRACKET, "]");
-        
+
             if (check(p, TOK_ASSIGN)) {
                 // arr[i] = value
                 advance(p); // '='
                 Node *val = parseExpr(p);
                 expect(p, TOK_SEMI, ";");
-            
+
                 Node *n = newNode(NODE_INDEX_ASSIGN);
                 n->text  = _strdup(name.text);
                 n->line  = name.line;
@@ -369,7 +151,7 @@ Node *parseStatement(Parser *p) {
                 n->right = val;
                 return n;
             }
-        
+
             //just arr[i]; as expression
             p->pos = save;
             Node *e = parseExpr(p);
@@ -378,13 +160,13 @@ Node *parseStatement(Parser *p) {
             n->expr = e;
             return n;
         }
-    
+
         if (check(p, TOK_ASSIGN)) {
             //ordinary assignment x = ...
             p->pos = save;
             return parseAssignOrExpr(p);
         }
-    
+
         //func call or expression
         p->pos = save;
         Node *e = parseExpr(p);
@@ -393,272 +175,10 @@ Node *parseStatement(Parser *p) {
         n->expr = e;
         return n;
     }
-    
 
     printf("Parse error: unexpected token '%s' on line %d\n",
            peek(p).text, peek(p).line);
     exit(1);
-}
-
-// name = INT, STRING, FLOAT, BOOL, ARRAY
-Node *parseAssignOrExpr(Parser *p) {
-    Token ident = advance(p); // IDENT
-
-    expect(p, TOK_ASSIGN, "=");
-
-    Node *expr = parseExpr(p);
-    expect(p, TOK_SEMI, ";");
-
-    if(expr->type == NODE_ARRAY){
-        Node *n = newNode(NODE_ARRAY);
-        n->text = _strdup(ident.text);
-        n->left = expr;
-        return n;
-    }
-
-    Node *n = newNode(NODE_ASSIGN);
-    n->line = ident.line;
-    n->text = _strdup(ident.text);
-    n->left = expr;
-    return n;
-}
-
-// if(expr GATE NOT WORK || &&){ ... } else{ ... }
-Node *parseIf(Parser *p) {
-    expect(p, TOK_KW_IF, "if");
-    expect(p, TOK_LPAREN, "(");
-    Node *cond = parseExpr(p);
-    expect(p, TOK_RPAREN, ")");
-
-    Node *n = newNode(NODE_IF);
-    n->cond = cond;
-    n->thenBranch = parseBlock(p);
-
-    if (check(p, TOK_KW_ELSE)) {
-        advance(p);
-        n->elseBranch = parseBlock(p);
-    } else {
-        n->elseBranch = NULL;
-    }
-
-    return n;
-}
-
-// while(expr){ ... }
-Node *parseWhile(Parser *p) {
-    expect(p, TOK_KW_WHILE, "while");
-    expect(p, TOK_LPAREN, "(");
-    Node *cond = parseExpr(p);
-    expect(p, TOK_RPAREN, ")");
-
-    Node *n = newNode(NODE_WHILE);
-    n->cond = cond;
-    n->thenBranch = parseBlock(p);
-
-    return n;
-}
-
-// func name(params); params only int and max 8
-Node *parseFuncDecl(Parser *p) {
-    expect(p, TOK_KW_FUNC, "func");
-    Token name = expect(p, TOK_TEXT, "name func");
-    Node *n = newNode(NODE_FUNC_DECL);
-    n->text = _strdup(name.text);
-    n->paramCount = 0;
-    n->returnType = TYPE_VOID;
-
-    expect(p, TOK_LPAREN, "(");
-    if (!check(p, TOK_RPAREN)) {
-        DataType paramType = parseTypeAnnotation(p);
-        DataType paramElementType = lastElementType;
-        Token param = expect(p, TOK_TEXT, "params");
-
-        if (n->paramCount >= n->paramCapacity) {
-            n->paramCapacity = (n->paramCapacity == 0) ? 4 : n->paramCapacity * 2;
-        
-            n->params = realloc(
-                n->params,
-                sizeof(Param) * n->paramCapacity
-            );
-        
-            if (!n->params) {
-                fprintf(stderr, "Out of memory\n");
-                exit(1);
-            }
-        }
-        
-        n->params[n->paramCount].type = paramType;
-        n->params[n->paramCount].elementType = paramElementType;
-        n->params[n->paramCount].name = _strdup(param.text);
-        n->paramCount++;
-        
-        while (check(p, TOK_COMMA)) {
-            advance(p);
-            paramType = parseTypeAnnotation(p);
-            paramElementType = lastElementType;
-            param = expect(p, TOK_TEXT, "params");
-            n->params[n->paramCount].type = paramType;
-            n->params[n->paramCount].elementType = paramElementType;
-            n->params[n->paramCount].name = _strdup(param.text);
-            n->paramCount++;
-        }
-    }
-    expect(p, TOK_RPAREN, ")");
-
-    if (check(p, TOK_ARROW)) {
-        advance(p);  // '->'
-        n->returnType = parseTypeAnnotation(p);
-        n->returnElementType = lastElementType;
-    }
-
-
-    printf("%s", n->text);
-    n->thenBranch = parseBlock(p); // block func
-    return n;
-}
-
-// return expr; 
-Node *parseReturn(Parser *p) {
-    expect(p, TOK_KW_RETURN, "return");
-    Node *n = newNode(NODE_RETURN);
-    n->expr = parseExpr(p);
-    expect(p, TOK_SEMI, ";");
-    return n;
-}
-
-// print expr; expr = INT, STRING, FLOAT
-Node *parsePrint(Parser *p){
-    advance(p);  
-
-    Node *arg = NULL;
-    Node *n = newNode(NODE_PRINT);
-    n->line = peek(p).line;
-    while (!check(p, TOK_SEMI)){
-        if (check(p, TOK_FSTRING)) {
-            // f"name: {name}"
-            Token ft = advance(p);
-            arg = newNode(NODE_FSTRING);
-            arg->text = _strdup(ft.text);
-        }
-        else if (check(p, TOK_STRING)) {
-            //print a;
-            Token str = advance(p);
-            arg = newNode(NODE_STRING);
-            arg->text = _strdup(str.text);
-        }
-        else {
-            arg = parseExpr(p);
-        }
-
-        if (arg) {
-            n->args = realloc(n->args, sizeof(Node *) * (n->argCount + 1));
-            n->args[n->argCount++] = arg;
-        }
-    }
-
-    expect(p, TOK_SEMI, ";");
-    return n;
-}
-
-// `this you can comment
-Node *parseIgnor(Parser *p) {
-    int commentLine = peek(p).line;
-    advance(p);  // consume `
-
-    Node *n = newNode(NODE_IGNOR);
-
-    //im allocating memory for an infinite number of letters in the comments.
-    size_t cap = 64;
-    n->text = malloc(1);
-    n->text[0] = '\0';  
-
-    // consume all tokens on the same line
-    while (!check(p, TOK_EOF) && peek(p).line == commentLine) {
-        size_t need = strlen(n->text) + strlen(peek(p).text) + 2;
-
-        //i thought about making the comments go into C, but i gave up on it.
-        if (need >= cap) {
-            while(cap <= need) cap *= 2;
-            n->text = realloc(n->text, cap);
-        }
-
-        strcat(n->text, peek(p).text);
-        strcat(n->text, " ");
-        
-        advance(p);
-    }
-
-    return n;
-}
-
-Node *parseArray(Parser *p) {
-    expect(p, TOK_LBRACKET, "[");
-    Node *n = newNode(NODE_ARRAY);
-    n->args = NULL;
-    n->argCount = 0;
-
-    if (!check(p, TOK_RBRACKET)) {
-        Node *arg = parseExpr(p);
-        n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
-        n->args[n->argCount++] = arg;
-
-        while (check(p, TOK_COMMA)) {
-            advance(p);
-            arg = parseExpr(p);
-            n->args = realloc(n->args, sizeof(Node*) * (n->argCount + 1));
-            n->args[n->argCount++] = arg;
-        }
-    }
-
-    expect(p, TOK_RBRACKET, "]");
-    return n;
-}
-
-// for (expr) {}
-Node *parseFor(Parser *p) {
-    expect(p, TOK_KW_FOR, "for");
-    expect(p, TOK_LPAREN, "(");
-
-    Node *n = newNode(NODE_FOR);
-
-    // for (i = 0, times)
-    if (check(p, TOK_TEXT) && p->tokens->tokens[p->pos + 1].type == TOK_ASSIGN) {
-
-        Token var = advance(p);
-
-        n->text = _strdup(var.text);
-        advance(p);  
-        n->left  = parseExpr(p);
-        expect(p, TOK_COMMA, ",");
-
-        n->right = parseExpr(p);
-    }
-    // for(i, times);
-    else if (check(p, TOK_TEXT) && p->tokens->tokens[p->pos + 1].type == TOK_COMMA) {
-
-        Token var = advance(p);
-
-        n->text = _strdup(var.text);
-        advance(p);  
-        n->left  = parseExpr(p);
-        n->right = NULL;
-        expect(p, TOK_COMMA, ",");
-
-        n->right = parseExpr(p);
-    }
-
-    // for(times)
-    else {
-        n->text = _strdup("i");
-        n->left = parseExpr(p);
-        n->right = NULL;
-    }
-
-    expect(p, TOK_RPAREN, ")");
-
-    n->thenBranch = parseBlock(p);
-
-    return n;
 }
 
 Node *parseImport(Parser *p) {
@@ -683,31 +203,6 @@ Node *parseImport(Parser *p) {
     }
 
     return n;
-}
-
-DataType parseTypeAnnotation(Parser *p) {
-    Token t = advance(p); 
-    lastElementType = TYPE_INT;
-    switch (t.type) {
-        case TOK_KW_INT:    lastElementType = TYPE_INT; return TYPE_INT;
-        case TOK_KW_FLOAT:  lastElementType = TYPE_FLOAT; return TYPE_FLOAT;
-        case TOK_KW_STRING: lastElementType = TYPE_STRING; return TYPE_STRING;
-        case TOK_KW_BOOL:   lastElementType = TYPE_BOOL; return TYPE_BOOL;
-        case TOK_KW_VOID:   return TYPE_VOID;
-        case TOK_KW_ARRAY: {
-            lastElementType = TYPE_INT;
-
-            // array<string>, array<float> 
-            if (check(p, TOK_LT)) {
-                advance(p); // '<'
-                lastElementType = parseTypeAnnotation(p);
-                if (check(p, TOK_GT)) advance(p); // '>'
-            }
-            return TYPE_ARRAY;
-        }
-        default:
-            exit(1);
-    }
 }
 
 void freeNode(Node *n)

@@ -1,5 +1,4 @@
 #include "codegen/c/codegen.h"
-#include "semantic/semantic.h"
 
 int main(int argc, char *argv[]) {
     initFlags();
@@ -43,13 +42,6 @@ int main(int argc, char *argv[]) {
     //PARSE PROGRAM
     Parser parser = { .tokens = &tokens, .pos = 0 };
     Node *ast = parseProgram(&parser);
-
-
-    // SEMANTIC ANALYZE
-    SemResult result = analyzeAST(ast);
-    printSemErrors(&result);
-    if(result.hasErrors) return -1;
-    
 
     char c_filename[520];
     snprintf(c_filename, sizeof(c_filename), "%s.c", flags.outputName);
