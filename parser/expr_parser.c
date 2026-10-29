@@ -54,6 +54,13 @@ Node *parseFactor(Parser *p) {
         return n;
     }
 
+    if (t.type == TOK_RAW_C) {
+        advance(p);
+        Node *n = newNode(NODE_RAW_C);
+        n->text = _strdup(t.text);
+        return n;
+    }
+
     if (t.type == TOK_NUMBER) {
         advance(p);
         Node *n = newNode(NODE_NUMBER);

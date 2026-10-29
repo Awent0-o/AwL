@@ -23,7 +23,7 @@ Node *parseAssignOrExpr(Parser *p) {
     return n;
 }
 
-// if(expr GATE NOT WORK || &&){ ... } else{ ... }
+// if(expr || &&){ ... } else{ ... }
 Node *parseIf(Parser *p) {
     expect(p, TOK_KW_IF, "if");
     expect(p, TOK_LPAREN, "(");

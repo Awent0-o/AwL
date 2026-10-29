@@ -24,7 +24,7 @@ typedef struct {
 } Variable;
 
 typedef struct {
-    char *name; //<- not limit name func
+    char *name;
     DataType type;
     DataType elementType;
 } Param;
@@ -43,14 +43,14 @@ typedef enum NodeType{
 
     NODE_EXPR_STMT,
     NODE_IGNOR,     //`comment
-    NODE_RAW_C      // <-- for raw C code block
+    NODE_RAW_C      // <-- for @{}
 } NodeType;
 
 typedef struct Node {
 
     Token token;
     NodeType type;
-    int line;       // <-- source line for diagnostics
+    int line;       // <-- source line for diagnostics(maybe in next update)
     int number;
     char *text;
     char *module;

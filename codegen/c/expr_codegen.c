@@ -99,6 +99,11 @@ void genExpr(Node *n, FILE *out) {
             fprintf(out, "\"%s\"", n->text);
             break;
 
+        case NODE_RAW_C:
+            // raw C expression/statement: @{ ... }
+            fprintf(out, "%s", n->text);
+            break;
+
         case NODE_FLOAT:
             fprintf(out, "%f", n->fvalue);
             break;
