@@ -53,7 +53,7 @@ void regVar(const char *name, DataType type, DataType elementType) {
 const char *getTypeStr(DataType type) {
     switch (type) {
         case TYPE_INT: return "int";
-        case TYPE_STRING: return "const char*";
+        case TYPE_STRING: return "char*";
         case TYPE_FLOAT: return "float";
         case TYPE_BOOL: return "bool";
         case TYPE_VOID: return "void";

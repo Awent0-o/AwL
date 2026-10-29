@@ -13,6 +13,10 @@ extern bool hasPython;
 extern char pyFiles[16][256];
 extern int pyFileCount;
 
+// C++ translation units imported with `import "file.cpp";`
+extern char cppFiles[16][256];
+extern int cppFileCount;
+
 // Variable table (utils_codegen.c)
 extern int declaredCount;
 

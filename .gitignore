@@ -1,3 +1,5 @@
 .gitignore
 build/
 .vscode/
+session
+tests

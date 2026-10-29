@@ -21,5 +21,8 @@ SRCS = main.c \
 $(TARGET): $(SRCS)
 	$(CC) $(CFLAGS) $(SRCS) -o $(TARGET)
 
+cp:
+	cp $(TARGET) /usr/bin
+
 clean:
 	rm -f $(TARGET)

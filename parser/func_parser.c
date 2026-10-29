@@ -56,16 +56,27 @@ Node *parseFuncDecl(Parser *p) {
 
 DataType parseTypeAnnotation(Parser *p) {
     Token t = advance(p);
-    DataType base = TYPE_INT;
+    DataType elementType = TYPE_INT;
+    DataType result = TYPE_INT;
 
     switch (t.type) {
-        case TOK_KW_INT:    base = TYPE_INT; break;
-        case TOK_KW_FLOAT:  base = TYPE_FLOAT; break;
-        case TOK_KW_STRING: base = TYPE_STRING; break;
-        case TOK_KW_BOOL:   base = TYPE_BOOL; break;
-        case TOK_KW_VOID:   base = TYPE_VOID; break;
+        case TOK_KW_INT:
+            elementType = result = TYPE_INT;
+            break;
+        case TOK_KW_FLOAT:
+            elementType = result = TYPE_FLOAT;
+            break;
+        case TOK_KW_STRING:
+            elementType = result = TYPE_STRING;
+            break;
+        case TOK_KW_BOOL:
+            elementType = result = TYPE_BOOL;
+            break;
+        case TOK_KW_VOID:
+            elementType = result = TYPE_VOID;
+            break;
         case TOK_KW_ARRAY: {
-            DataType elementType = TYPE_INT;
+            elementType = TYPE_INT;
 
             // array<string>, array<float>
             if (check(p, TOK_LT)) {
@@ -75,11 +86,11 @@ DataType parseTypeAnnotation(Parser *p) {
                 if (check(p, TOK_GT)) advance(p); // '>'
             }
 
-            lastElementType = elementType;
-            return TYPE_ARRAY;
+            result = TYPE_ARRAY;
+            break;
         }
         case TOK_KW_PTR: {
-            DataType elementType = TYPE_INT;
+            elementType = TYPE_INT;
 
             if (check(p, TOK_LT)) {
                 advance(p); // '<'
@@ -88,20 +99,22 @@ DataType parseTypeAnnotation(Parser *p) {
                 if (check(p, TOK_GT)) advance(p); // '>'
             }
 
-            lastElementType = elementType;
-            return TYPE_POINTER;
+            result = TYPE_POINTER;
+            break;
         }
         default:
             exit(1);
     }
 
-    // C-like pointer suffix: int*, float*, void*
+    // C-like pointer suffix: int*, float*, void*, array<string>*, ptr<int>*
+    // For array<T>* we keep T as the element type, so it behaves like
+    // array<T> in a parameter position (char **argv for array<string>*).
     if (check(p, TOK_STAR)) {
         advance(p);
-        lastElementType = base;
+        lastElementType = elementType;
         return TYPE_POINTER;
     }
 
-    lastElementType = base;
-    return base;
+    lastElementType = elementType;
+    return result;
 }

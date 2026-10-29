@@ -361,6 +361,16 @@ void genMainEntry(Node *ast, Node *entry, FILE *out) {
     genMainParams(entry, out);
     fprintf(out, ") {\n");
 
+    // register main params so print/f-string can infer argc (%d) and
+    // argv[i] (%s for array<string>) types inside the body
+    if (entry) {
+        for (int i = 0; i < entry->paramCount; i++) {
+            regVar(entry->params[i].name,
+                   entry->params[i].type,
+                   entry->params[i].elementType);
+        }
+    }
+
     for (int i = 0; i < pyFileCount; i++) {
         // "lib.py" -> modname = "lib"
         char modname[64] = {0};
@@ -389,4 +399,3 @@ void genMainEntry(Node *ast, Node *entry, FILE *out) {
 
     fprintf(out, "    return 0;\n}\n");
 }
-

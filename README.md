@@ -110,7 +110,7 @@ if wsl ./awl main.awl
 
 program     := (funcDecl | statement)*   (func main is optional)
 
-import      := 'import' path (math -> c, libs/hello.py -> py, libs/add.awl -> awl) ';'
+import      := 'import' path (math -> c, libs/hello.py -> py, libs/add.awl -> awl, lib.cpp/.hpp -> c++) ';'
 
 funcDecl    := 'func' IDENT '(' params? ')' ('->' type)? block
 
@@ -155,6 +155,50 @@ factor      := NUMBER | IDENT | call | '(' expr ')' | '[' args? ']'
 
 call        := IDENT '(' args? ')'
 </details>
+
+### 🧩 C++ libraries
+
+AWL can compile `.cpp` / `.cc` / `.cxx` files with `g++` and link them into the
+final binary. The C++ side must expose a C ABI so the generated C code can call
+it.
+
+`tests/cpp/cppdemo.hpp`:
+
+```cpp
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int cpp_sum(const int *values, int count);
+
+#ifdef __cplusplus
+}
+#endif
+```
+
+`tests/cpp/cppdemo.cpp` can use the C++ standard library internally:
+
+```cpp
+#include "cppdemo.hpp"
+#include <numeric>
+
+extern "C" int cpp_sum(const int *values, int count) {
+    return std::accumulate(values, values + count, 0);
+}
+```
+
+Use it from AWL:
+
+```awl
+import "tests/cpp/cppdemo.hpp";
+import "tests/cpp/cppdemo.cpp";
+
+arr = [1, 2, 3, 4, 5];
+print cpp_sum(arr, 5) "\n";
+```
+
+C++ imports are resolved relative to the directory where `awl` is run. The
+compiler automatically adds `-I.` and uses `g++` for linking.
 
 ## 🧑‍💻 Project Structure
 

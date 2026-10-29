@@ -1,5 +1,21 @@
 #include "codegen_internal.h"
 
+static bool endsWith(const char *s, const char *suffix) {
+    size_t slen = strlen(s);
+    size_t xlen = strlen(suffix);
+    return slen >= xlen && strcmp(s + slen - xlen, suffix) == 0;
+}
+
+static bool isCppSource(const char *path) {
+    return endsWith(path, ".cpp") || endsWith(path, ".cc") ||
+           endsWith(path, ".cxx");
+}
+
+static bool isCppHeader(const char *path) {
+    return endsWith(path, ".hpp") || endsWith(path, ".hh") ||
+           endsWith(path, ".hxx");
+}
+
 void genImport(Node *n, FILE *out) {
     const char *path = n->text;
     size_t len = strlen(path);
@@ -46,6 +62,31 @@ void genImport(Node *n, FILE *out) {
 
         free(src);
         free(tokens.tokens);
+        return;
+    }
+
+    // C++ header: it must expose a C ABI (extern "C").
+    // "lib.hpp" -> #include "lib.hpp"
+    if (isCppHeader(path)) {
+        fprintf(out, "#include \"%s\"\n", path);
+        return;
+    }
+
+    // C++ implementation: compile it with g++ and link into the binary.
+    // Function declarations still come from a C-compatible header.
+    if (isCppSource(path)) {
+        for (int i = 0; i < cppFileCount; i++) {
+            if (strcmp(cppFiles[i], path) == 0) return; // already imported
+        }
+
+        if (cppFileCount >= 16) {
+            fprintf(stderr, "Too many C++ imports (max 16)\n");
+            return;
+        }
+
+        snprintf(cppFiles[cppFileCount], sizeof(cppFiles[cppFileCount]),
+                 "%s", path);
+        cppFileCount++;
         return;
     }
 
